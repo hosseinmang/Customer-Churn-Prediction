@@ -195,10 +195,24 @@ def load_data():
             st.error(f"Data file not found at: {data_path}")
             return None
             
-        data = pd.read_excel(data_path)
-        return data
+        # Load raw data
+        df = pd.read_excel(data_path)
+        
+        # Debug info
+        st.write("Original columns:", df.columns.tolist())
+        
+        # Process data through preprocessing pipeline
+        df_processed, _ = preprocess_data(df)
+        
+        # Debug info
+        st.write("Processed columns:", df_processed.columns.tolist())
+        
+        return df_processed
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
+        st.write("Current working directory:", os.getcwd())
+        st.write("Project root:", PROJECT_ROOT)
+        st.write("Full data path:", data_path)
         return None
 
 @st.cache_resource
@@ -230,6 +244,18 @@ try:
     
     if df is None or model is None:
         st.error("Failed to load data or model. Please check the file paths and try again.")
+        st.stop()
+    
+    # Debug info
+    st.write("Available columns for metrics:", df.columns.tolist())
+    
+    # Ensure required columns exist
+    required_columns = ['YearsWithBank', 'MonthlyBankFees', 'TotalBalance', 'Churn Value', 'Churn Label']
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    
+    if missing_columns:
+        st.error(f"Missing required columns: {missing_columns}")
+        st.write("Available columns:", df.columns.tolist())
         st.stop()
         
     X, y, feature_names = prepare_features(df)

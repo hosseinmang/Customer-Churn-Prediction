@@ -21,33 +21,32 @@ def preprocess_data(df):
     # Create a copy
     df_processed = df.copy()
     
-    # Drop location-specific columns
+    # Drop location-specific columns if they exist
     location_cols = ['City', 'State', 'Country', 'Zip Code', 'Lat Long', 'Latitude', 'Longitude']
-    df_processed = df_processed.drop(columns=location_cols, errors='ignore')
+    df_processed = df_processed.drop(columns=[col for col in location_cols if col in df_processed.columns])
     
-    # Convert Total Charges to numeric before renaming
-    df_processed['Total Charges'] = pd.to_numeric(df_processed['Total Charges'], errors='coerce')
-    df_processed['Total Charges'] = df_processed['Total Charges'].fillna(0)
-    
-    # Rename columns to match banking context
+    # Rename columns if needed (handle both original and processed column names)
     column_mapping = {
+        'tenure': 'YearsWithBank',
+        'monthly_charges': 'MonthlyBankFees',
+        'total_charges': 'TotalBalance',
+        'churn': 'Churn Value',
+        'churn_label': 'Churn Label',
+        'Tenure Months': 'YearsWithBank',
         'Monthly Charges': 'MonthlyBankFees',
         'Total Charges': 'TotalBalance',
-        'Tenure Months': 'YearsWithBank',
-        'Phone Service': 'DebitCard',
-        'Multiple Lines': 'CreditCard',
-        'Internet Service': 'OnlineBanking',
-        'Online Security': 'SecureLogin2FA',
-        'Online Backup': 'AutomaticSavings',
-        'Device Protection': 'FraudProtection',
-        'Tech Support': 'CustomerSupport',
-        'Streaming TV': 'BillPay',
-        'Streaming Movies': 'MobilePayments'
+        'Churn': 'Churn Value'
     }
-    df_processed = df_processed.rename(columns=column_mapping)
     
-    # Convert YearsWithBank from months to years
-    df_processed['YearsWithBank'] = df_processed['YearsWithBank'] / 12
+    # Only rename columns that exist and need renaming
+    for old_col, new_col in column_mapping.items():
+        if old_col in df_processed.columns and new_col not in df_processed.columns:
+            df_processed = df_processed.rename(columns={old_col: new_col})
+    
+    # Convert YearsWithBank from months to years if needed
+    if 'YearsWithBank' in df_processed.columns:
+        if df_processed['YearsWithBank'].mean() > 50:  # Likely in months
+            df_processed['YearsWithBank'] = df_processed['YearsWithBank'] / 12
     
     # Initialize dictionary to store transformers
     transformers = {}
@@ -63,9 +62,19 @@ def preprocess_data(df):
     
     # Scale numerical features
     numerical_cols = ['YearsWithBank', 'MonthlyBankFees', 'TotalBalance']
-    scaler = StandardScaler()
-    df_processed[numerical_cols] = scaler.fit_transform(df_processed[numerical_cols])
-    transformers['numerical_scaler'] = scaler
+    numerical_cols = [col for col in numerical_cols if col in df_processed.columns]
+    
+    if numerical_cols:
+        scaler = StandardScaler()
+        df_processed[numerical_cols] = scaler.fit_transform(df_processed[numerical_cols])
+        transformers['numerical_scaler'] = scaler
+    
+    # Ensure Churn Value exists
+    if 'Churn' in df_processed.columns and 'Churn Value' not in df_processed.columns:
+        df_processed['Churn Value'] = (df_processed['Churn'] == 'Yes').astype(int)
+    
+    if 'Churn Label' not in df_processed.columns and 'Churn' in df_processed.columns:
+        df_processed['Churn Label'] = df_processed['Churn']
     
     return df_processed, transformers
 
