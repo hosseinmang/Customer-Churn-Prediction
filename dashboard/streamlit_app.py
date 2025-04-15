@@ -185,28 +185,38 @@ st.markdown("""
 @st.cache_data
 def load_data():
     """Load and preprocess the data"""
-    # Get the absolute path to the workspace root
-    workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    data_path = os.path.join(workspace_root, 'data', 'Telco_customer_churn.xlsx')
-    df = pd.read_excel(data_path)
-    df_processed, transformers = preprocess_data(df)
-    return df, df_processed
+    try:
+        # Try to load from the current directory first
+        data_path = os.path.join('data', 'Telco_customer_churn.xlsx')
+        if not os.path.exists(data_path):
+            # If not found, try the parent directory
+            data_path = os.path.join('..', 'data', 'Telco_customer_churn.xlsx')
+        df = pd.read_excel(data_path)
+        df_processed, transformers = preprocess_data(df)
+        return df, df_processed
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        return None, None
 
 @st.cache_resource
 def load_model():
     """Load the trained model and transformers"""
-    # Get the absolute path to the workspace root
-    workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    model_path = os.path.join(workspace_root, 'models', 'xgb_model.joblib')
-    transformers_path = os.path.join(workspace_root, 'models', 'transformers.joblib')
-    model = joblib.load(model_path)
-    transformers = joblib.load(transformers_path)
-    return model, transformers
+    try:
+        # Try to load from the current directory first
+        model_path = os.path.join('models', 'xgb_model.joblib')
+        if not os.path.exists(model_path):
+            # If not found, try the parent directory
+            model_path = os.path.join('..', 'models', 'xgb_model.joblib')
+        model = joblib.load(model_path)
+        return model
+    except Exception as e:
+        st.error(f"Error loading model: {str(e)}")
+        return None
 
 # Load data and model
 try:
     df, df_processed = load_data()
-    model, transformers = load_model()
+    model = load_model()
     X, y, feature_names = prepare_features(df_processed)
 except Exception as e:
     st.error(f"Error loading data or model: {str(e)}")
