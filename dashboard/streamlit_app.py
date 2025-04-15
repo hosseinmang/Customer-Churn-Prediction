@@ -377,28 +377,55 @@ try:
             </div>
         """, unsafe_allow_html=True)
         
-        # Create scatter plot
-        fig = px.scatter(df, 
-                        x='Tenure Months', 
-                        y='Monthly Charges',
-                        color='Churn Label',
-                        size='Total Charges',
-                        hover_data=['CustomerID'],
-                        title='Customer Segments by Tenure and Monthly Charges',
-                        labels={'Tenure Months': 'Tenure (Months)',
-                               'Monthly Charges': 'Monthly Charges ($)',
-                               'Total Charges': 'Total Charges ($)'},
-                        color_discrete_sequence=['#2ecc71', '#e74c3c'])
-        
-        fig.update_layout(
-            title_x=0.5,
-            title_font_size=20,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(t=50, l=0, r=0, b=0)
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
+        # Clean and convert numeric columns with proper error handling
+        try:
+            # Create a copy of the dataframe to avoid modifying the original
+            df_viz = df.copy()
+            
+            # Clean and convert Tenure Months
+            df_viz['Tenure Months'] = pd.to_numeric(df_viz['Tenure Months'], errors='coerce')
+            
+            # Clean and convert Monthly Charges (remove currency symbols and commas)
+            df_viz['Monthly Charges'] = df_viz['Monthly Charges'].astype(str).str.replace('$', '').str.replace(',', '')
+            df_viz['Monthly Charges'] = pd.to_numeric(df_viz['Monthly Charges'], errors='coerce')
+            
+            # Clean and convert Total Charges (remove currency symbols and commas)
+            df_viz['Total Charges'] = df_viz['Total Charges'].astype(str).str.replace('$', '').str.replace(',', '')
+            df_viz['Total Charges'] = pd.to_numeric(df_viz['Total Charges'], errors='coerce')
+            
+            # Drop rows with NaN values for these columns
+            df_clean = df_viz.dropna(subset=['Tenure Months', 'Monthly Charges', 'Total Charges'])
+            
+            if len(df_clean) == 0:
+                st.error("No valid data available after cleaning. Please check the data format.")
+                st.stop()
+            
+            # Create the scatter plot
+            fig = px.scatter(df_clean, 
+                           x='Tenure Months', 
+                           y='Monthly Charges',
+                           color='Churn Label',
+                           size='Total Charges',
+                           hover_data=['CustomerID'],
+                           title='Customer Segments by Tenure and Monthly Charges',
+                           labels={'Tenure Months': 'Tenure (Months)',
+                                  'Monthly Charges': 'Monthly Charges ($)',
+                                  'Total Charges': 'Total Charges ($)'},
+                           color_discrete_sequence=['#2ecc71', '#e74c3c'])
+            
+            fig.update_layout(
+                title_x=0.5,
+                title_font_size=20,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                margin=dict(t=50, l=0, r=0, b=0)
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+        except Exception as e:
+            st.error(f"Error creating visualization: {str(e)}")
+            st.write("Please ensure the data contains valid numeric values for Tenure Months, Monthly Charges, and Total Charges.")
 
         # Service Adoption Analysis
         st.subheader("Service Adoption Patterns")
@@ -550,7 +577,118 @@ try:
                 senior = st.selectbox("Senior Citizen", ['Yes', 'No'])
             
             if st.button("Analyze Churn Risk"):
-                st.info("Risk analysis functionality coming soon!")
+                try:
+                    # Create a dictionary with customer data
+                    customer_data = {
+                        'tenure': tenure,
+                        'MonthlyCharges': monthly_charges,
+                        'Contract': contract,
+                        'InternetService': internet_service,
+                        'OnlineSecurity': online_security,
+                        'TechSupport': tech_support,
+                        'PaymentMethod': payment_method,
+                        'PaperlessBilling': paperless,
+                        'SeniorCitizen': 1 if senior == 'Yes' else 0
+                    }
+                    
+                    # Convert to DataFrame
+                    input_df = pd.DataFrame([customer_data])
+                    
+                    # Load the model
+                    model_path = os.path.join(PROJECT_ROOT, 'models', 'churn_model.joblib')
+                    if not os.path.exists(model_path):
+                        st.error("Model file not found. Please ensure the model is trained and saved correctly.")
+                        st.stop()
+                    
+                    model = joblib.load(model_path)
+                    
+                    # Preprocess the input data
+                    processed_data = prepare_features(input_df)
+                    
+                    # Make prediction
+                    prediction = model.predict_proba(processed_data)[0]
+                    churn_probability = prediction[1]
+                    
+                    # Display results with custom styling
+                    st.markdown("---")
+                    st.markdown("### Risk Analysis Results")
+                    
+                    # Create three columns for the results
+                    result_col1, result_col2, result_col3 = st.columns(3)
+                    
+                    with result_col1:
+                        st.markdown(
+                            f"""
+                            <div style='background-color: {'#ffebee' if churn_probability > 0.5 else '#e8f5e9'}; 
+                                    padding: 20px; 
+                                    border-radius: 10px; 
+                                    text-align: center;'>
+                                <h2 style='color: {'#c62828' if churn_probability > 0.5 else '#2e7d32'};'>
+                                    {churn_probability:.1%}
+                                </h2>
+                                <p>Churn Probability</p>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                    
+                    with result_col2:
+                        risk_level = "High" if churn_probability > 0.7 else "Medium" if churn_probability > 0.3 else "Low"
+                        risk_color = "#c62828" if risk_level == "High" else "#f57c00" if risk_level == "Medium" else "#2e7d32"
+                        st.markdown(
+                            f"""
+                            <div style='background-color: white; 
+                                    padding: 20px; 
+                                    border-radius: 10px; 
+                                    text-align: center;
+                                    border: 2px solid {risk_color};'>
+                                <h3 style='color: {risk_color};'>{risk_level}</h3>
+                                <p>Risk Level</p>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                    
+                    with result_col3:
+                        # Calculate risk factors
+                        risk_factors = []
+                        if contract == 'Month-to-month':
+                            risk_factors.append("Month-to-month contract")
+                        if tenure < 12:
+                            risk_factors.append("Low tenure")
+                        if payment_method == 'Electronic check':
+                            risk_factors.append("Payment method")
+                        if online_security == 'No':
+                            risk_factors.append("No online security")
+                        
+                        st.markdown("#### Key Risk Factors")
+                        if risk_factors:
+                            for factor in risk_factors[:3]:  # Show top 3 factors
+                                st.markdown(f"- {factor}")
+                        else:
+                            st.markdown("No significant risk factors identified")
+                    
+                    # Add recommendations
+                    st.markdown("### Recommendations")
+                    if churn_probability > 0.5:
+                        st.markdown("""
+                        🎯 **Recommended Actions:**
+                        1. Offer contract upgrade incentives
+                        2. Provide security service packages
+                        3. Schedule customer success call
+                        4. Consider personalized retention offers
+                        """)
+                    else:
+                        st.markdown("""
+                        ✅ **Maintenance Actions:**
+                        1. Regular service quality checks
+                        2. Periodic satisfaction surveys
+                        3. Loyalty program enrollment
+                        """)
+                    
+                except Exception as e:
+                    st.error(f"Error during analysis: {str(e)}")
+                    st.write("Please ensure all required models and dependencies are properly set up.")
 
         with tab2:
             st.subheader("Batch Risk Assessment")
