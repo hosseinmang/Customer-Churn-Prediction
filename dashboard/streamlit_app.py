@@ -614,8 +614,8 @@ try:
                     X, _, _ = prepare_features(input_df)
                     
                     # Make prediction
-                    prediction = model.predict(X)[0]
-                    probability = model.predict_proba(X)[0][1]
+                    prediction = model.predict_churn(X)[0]
+                    probability = model.predict_proba_churn(X)[0][1]
                     
                     # Display results with custom styling
                     st.markdown("---")
