@@ -37,7 +37,7 @@ def preprocess_data(df):
     
     return df
 
-def prepare_features(df):
+def prepare_features(df, transformers=None):
     """Prepare features for modeling"""
     if not isinstance(df, pd.DataFrame):
         raise ValueError("Input must be a pandas DataFrame")
@@ -51,26 +51,29 @@ def prepare_features(df):
                           'Online Backup', 'Device Protection', 'Tech Support',
                           'Payment Method', 'Paperless Billing']
     
-    # Initialize label encoders dictionary
-    label_encoders = {}
-    
-    # Handle categorical features
-    for feature in categorical_features:
-        if feature in df.columns:
-            # Create and fit label encoder
-            le = LabelEncoder()
-            # Handle missing values before encoding
-            df[feature] = df[feature].fillna('Unknown')
-            # Fit and transform
-            df[feature] = le.fit_transform(df[feature].astype(str))
-            # Store the encoder
-            label_encoders[feature] = le
-    
     # Handle numerical features
     for feature in numerical_features:
         if feature in df.columns:
             # Fill missing values with median
             df[feature] = df[feature].fillna(df[feature].median())
+    
+    # Handle categorical features
+    if transformers is not None:
+        # Use loaded transformers if available
+        for feature in categorical_features:
+            if feature in df.columns and f'{feature}_encoder' in transformers:
+                le = transformers[f'{feature}_encoder']
+                df[feature] = df[feature].fillna('Unknown')
+                df[feature] = le.transform(df[feature].astype(str))
+    else:
+        # Initialize new transformers if none provided
+        label_encoders = {}
+        for feature in categorical_features:
+            if feature in df.columns:
+                le = LabelEncoder()
+                df[feature] = df[feature].fillna('Unknown')
+                df[feature] = le.fit_transform(df[feature].astype(str))
+                label_encoders[feature] = le
     
     # Select features for modeling
     features = [f for f in numerical_features + categorical_features if f in df.columns]

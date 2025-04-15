@@ -595,19 +595,27 @@ try:
                     input_df = pd.DataFrame([customer_data])
                     
                     # Load the model
-                    model_path = os.path.join(PROJECT_ROOT, 'models', 'churn_model.joblib')
+                    model_path = os.path.join(PROJECT_ROOT, 'models', 'xgb_model.joblib')
                     if not os.path.exists(model_path):
                         st.error("Model file not found. Please ensure the model is trained and saved correctly.")
                         st.stop()
                     
                     model = joblib.load(model_path)
                     
+                    # Load the transformers
+                    transformers_path = os.path.join(PROJECT_ROOT, 'models', 'transformers.joblib')
+                    if not os.path.exists(transformers_path):
+                        st.error("Transformers file not found. Please ensure the model is trained and saved correctly.")
+                        st.stop()
+                    
+                    transformers = joblib.load(transformers_path)
+                    
                     # Preprocess the input data
-                    processed_data = prepare_features(input_df)
+                    processed_data = prepare_features(input_df, transformers)
                     
                     # Make prediction
-                    prediction = model.predict_proba(processed_data)[0]
-                    churn_probability = prediction[1]
+                    prediction = model.predict(processed_data)[0]
+                    probability = model.predict_proba(processed_data)[0][1]
                     
                     # Display results with custom styling
                     st.markdown("---")
@@ -619,12 +627,12 @@ try:
                     with result_col1:
                         st.markdown(
                             f"""
-                            <div style='background-color: {'#ffebee' if churn_probability > 0.5 else '#e8f5e9'}; 
+                            <div style='background-color: {'#ffebee' if probability > 0.5 else '#e8f5e9'}; 
                                     padding: 20px; 
                                     border-radius: 10px; 
                                     text-align: center;'>
-                                <h2 style='color: {'#c62828' if churn_probability > 0.5 else '#2e7d32'};'>
-                                    {churn_probability:.1%}
+                                <h2 style='color: {'#c62828' if probability > 0.5 else '#2e7d32'};'>
+                                    {probability:.1%}
                                 </h2>
                                 <p>Churn Probability</p>
                             </div>
@@ -633,7 +641,7 @@ try:
                         )
                     
                     with result_col2:
-                        risk_level = "High" if churn_probability > 0.7 else "Medium" if churn_probability > 0.3 else "Low"
+                        risk_level = "High" if probability > 0.7 else "Medium" if probability > 0.3 else "Low"
                         risk_color = "#c62828" if risk_level == "High" else "#f57c00" if risk_level == "Medium" else "#2e7d32"
                         st.markdown(
                             f"""
@@ -670,7 +678,7 @@ try:
                     
                     # Add recommendations
                     st.markdown("### Recommendations")
-                    if churn_probability > 0.5:
+                    if probability > 0.5:
                         st.markdown("""
                         🎯 **Recommended Actions:**
                         1. Offer contract upgrade incentives
