@@ -611,7 +611,7 @@ try:
                     transformers = joblib.load(transformers_path)
                     
                     # Preprocess the input data
-                    X, _, _ = prepare_features(input_df, transformers)
+                    X, _, _ = prepare_features(input_df, transformers=transformers)
                     
                     # Make prediction
                     prediction = model.predict(X)[0]
