@@ -186,12 +186,23 @@ st.markdown("""
 def load_data():
     """Load and preprocess the data"""
     try:
-        # Get the absolute path to the workspace root
-        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        data_path = os.path.join(workspace_root, 'data', 'Telco_customer_churn.xlsx')
+        # Try different possible paths for the data file
+        possible_paths = [
+            os.path.join('data', 'Telco_customer_churn.xlsx'),  # Local relative path
+            os.path.join('..', 'data', 'Telco_customer_churn.xlsx'),  # One directory up
+            os.path.join(os.path.dirname(__file__), '..', 'data', 'Telco_customer_churn.xlsx'),  # Absolute path from script
+            '/mount/src/customer-churn-prediction/data/Telco_customer_churn.xlsx'  # Streamlit Cloud path
+        ]
         
-        if not os.path.exists(data_path):
-            st.error(f"Data file not found at: {data_path}")
+        data_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                data_path = path
+                break
+        
+        if data_path is None:
+            st.error("Data file not found. Please check if the file exists in the data directory.")
+            st.write("Tried paths:", possible_paths)
             return None, None
             
         df = pd.read_excel(data_path)
@@ -199,26 +210,55 @@ def load_data():
         return df, df_processed
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
+        st.write("Current working directory:", os.getcwd())
+        st.write("Files in current directory:", os.listdir())
         return None, None
 
 @st.cache_resource
 def load_model():
     """Load the trained model and transformers"""
     try:
-        # Get the absolute path to the workspace root
-        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        model_path = os.path.join(workspace_root, 'models', 'xgb_model.joblib')
-        transformers_path = os.path.join(workspace_root, 'models', 'transformers.joblib')
+        # Try different possible paths for the model files
+        possible_model_paths = [
+            os.path.join('models', 'xgb_model.joblib'),  # Local relative path
+            os.path.join('..', 'models', 'xgb_model.joblib'),  # One directory up
+            os.path.join(os.path.dirname(__file__), '..', 'models', 'xgb_model.joblib'),  # Absolute path from script
+            '/mount/src/customer-churn-prediction/models/xgb_model.joblib'  # Streamlit Cloud path
+        ]
         
-        if not os.path.exists(model_path):
-            st.error(f"Model file not found at: {model_path}")
+        possible_transformer_paths = [
+            os.path.join('models', 'transformers.joblib'),  # Local relative path
+            os.path.join('..', 'models', 'transformers.joblib'),  # One directory up
+            os.path.join(os.path.dirname(__file__), '..', 'models', 'transformers.joblib'),  # Absolute path from script
+            '/mount/src/customer-churn-prediction/models/transformers.joblib'  # Streamlit Cloud path
+        ]
+        
+        model_path = None
+        transformer_path = None
+        
+        for path in possible_model_paths:
+            if os.path.exists(path):
+                model_path = path
+                break
+                
+        for path in possible_transformer_paths:
+            if os.path.exists(path):
+                transformer_path = path
+                break
+        
+        if model_path is None or transformer_path is None:
+            st.error("Model or transformer files not found. Please check if the files exist in the models directory.")
+            st.write("Tried model paths:", possible_model_paths)
+            st.write("Tried transformer paths:", possible_transformer_paths)
             return None, None
             
         model = joblib.load(model_path)
-        transformers = joblib.load(transformers_path)
+        transformers = joblib.load(transformer_path)
         return model, transformers
     except Exception as e:
         st.error(f"Error loading model: {str(e)}")
+        st.write("Current working directory:", os.getcwd())
+        st.write("Files in current directory:", os.listdir())
         return None, None
 
 # Load data and model
@@ -233,6 +273,8 @@ try:
     X, y, feature_names = prepare_features(df_processed)
 except Exception as e:
     st.error(f"Error loading data or model: {str(e)}")
+    st.write("Current working directory:", os.getcwd())
+    st.write("Directory contents:", os.listdir())
     st.stop()
 
 # Sidebar
