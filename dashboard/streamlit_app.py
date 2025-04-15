@@ -595,7 +595,7 @@ try:
                     input_df = pd.DataFrame([customer_data])
                     
                     # Load the model
-                    model_path = os.path.join(PROJECT_ROOT, 'models', 'xgb_model.joblib')
+                    model_path = os.path.join(PROJECT_ROOT, 'models', 'churn_model.joblib')
                     if not os.path.exists(model_path):
                         st.error("Model file not found. Please ensure the model is trained and saved correctly.")
                         st.stop()
