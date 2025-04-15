@@ -15,8 +15,11 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
 
+# Get the absolute path to the project root directory
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
 # Add scripts to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+sys.path.append(os.path.join(PROJECT_ROOT, 'scripts'))
 from preprocessing import preprocess_data, prepare_features
 
 # Set page config
@@ -186,91 +189,50 @@ st.markdown("""
 def load_data():
     """Load and preprocess the data"""
     try:
-        # Try different possible paths for the data file
-        possible_paths = [
-            os.path.join('data', 'Telco_customer_churn.xlsx'),  # Local relative path
-            os.path.join('..', 'data', 'Telco_customer_churn.xlsx'),  # One directory up
-            os.path.join(os.path.dirname(__file__), '..', 'data', 'Telco_customer_churn.xlsx'),  # Absolute path from script
-            '/mount/src/customer-churn-prediction/data/Telco_customer_churn.xlsx'  # Streamlit Cloud path
-        ]
-        
-        data_path = None
-        for path in possible_paths:
-            if os.path.exists(path):
-                data_path = path
-                break
-        
-        if data_path is None:
-            st.error("Data file not found. Please check if the file exists in the data directory.")
-            st.write("Tried paths:", possible_paths)
-            return None, None
+        # Use absolute path from project root
+        data_path = os.path.join(PROJECT_ROOT, 'data', 'Telco_customer_churn.xlsx')
+        if not os.path.exists(data_path):
+            st.error(f"Data file not found at: {data_path}")
+            return None
             
-        df = pd.read_excel(data_path)
-        df_processed, transformers = preprocess_data(df)
-        return df, df_processed
+        data = pd.read_excel(data_path)
+        return data
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
-        st.write("Current working directory:", os.getcwd())
-        st.write("Files in current directory:", os.listdir())
-        return None, None
+        return None
 
 @st.cache_resource
-def load_model():
+def load_models():
     """Load the trained model and transformers"""
     try:
-        # Try different possible paths for the model files
-        possible_model_paths = [
-            os.path.join('models', 'xgb_model.joblib'),  # Local relative path
-            os.path.join('..', 'models', 'xgb_model.joblib'),  # One directory up
-            os.path.join(os.path.dirname(__file__), '..', 'models', 'xgb_model.joblib'),  # Absolute path from script
-            '/mount/src/customer-churn-prediction/models/xgb_model.joblib'  # Streamlit Cloud path
-        ]
+        # Use absolute paths from project root
+        model_path = os.path.join(PROJECT_ROOT, 'models', 'xgb_model.joblib')
+        transformer_path = os.path.join(PROJECT_ROOT, 'models', 'transformers.joblib')
         
-        possible_transformer_paths = [
-            os.path.join('models', 'transformers.joblib'),  # Local relative path
-            os.path.join('..', 'models', 'transformers.joblib'),  # One directory up
-            os.path.join(os.path.dirname(__file__), '..', 'models', 'transformers.joblib'),  # Absolute path from script
-            '/mount/src/customer-churn-prediction/models/transformers.joblib'  # Streamlit Cloud path
-        ]
-        
-        model_path = None
-        transformer_path = None
-        
-        for path in possible_model_paths:
-            if os.path.exists(path):
-                model_path = path
-                break
-                
-        for path in possible_transformer_paths:
-            if os.path.exists(path):
-                transformer_path = path
-                break
-        
-        if model_path is None or transformer_path is None:
-            st.error("Model or transformer files not found. Please check if the files exist in the models directory.")
-            st.write("Tried model paths:", possible_model_paths)
-            st.write("Tried transformer paths:", possible_transformer_paths)
+        if not os.path.exists(model_path):
+            st.error(f"Model file not found at: {model_path}")
+            return None, None
+        if not os.path.exists(transformer_path):
+            st.error(f"Transformer file not found at: {transformer_path}")
             return None, None
             
         model = joblib.load(model_path)
         transformers = joblib.load(transformer_path)
         return model, transformers
     except Exception as e:
-        st.error(f"Error loading model: {str(e)}")
-        st.write("Current working directory:", os.getcwd())
-        st.write("Files in current directory:", os.listdir())
+        st.error(f"Error loading models: {str(e)}")
         return None, None
 
 # Load data and model
 try:
-    df, df_processed = load_data()
-    model, transformers = load_model()
+    df = load_data()
+    model, transformers = load_models()
     
     if df is None or model is None:
         st.error("Failed to load data or model. Please check the file paths and try again.")
         st.stop()
         
-    X, y, feature_names = prepare_features(df_processed)
+    X, y, feature_names = prepare_features(df)
 except Exception as e:
     st.error(f"Error loading data or model: {str(e)}")
     st.write("Current working directory:", os.getcwd())
@@ -321,7 +283,7 @@ if page == "Executive Summary":
         ), unsafe_allow_html=True)
     
     with col3:
-        avg_tenure = df_processed['YearsWithBank'].mean()
+        avg_tenure = df['YearsWithBank'].mean()
         st.markdown("""
             <div class='metric-card'>
                 <h4 style='color: #7f8c8d; margin-bottom: 0.5rem;'>Avg. Customer Tenure</h4>
@@ -331,7 +293,7 @@ if page == "Executive Summary":
         """.format(avg_tenure), unsafe_allow_html=True)
     
     with col4:
-        avg_monthly = df_processed['MonthlyBankFees'].mean()
+        avg_monthly = df['MonthlyBankFees'].mean()
         st.markdown("""
             <div class='metric-card'>
                 <h4 style='color: #7f8c8d; margin-bottom: 0.5rem;'>Avg. Monthly Fees</h4>
@@ -453,10 +415,10 @@ elif page == "Customer Segments":
     """, unsafe_allow_html=True)
     
     # Normalize TotalBalance for size
-    df_processed['TotalBalance_normalized'] = (df_processed['TotalBalance'] - df_processed['TotalBalance'].min()) / (df_processed['TotalBalance'].max() - df_processed['TotalBalance'].min())
-    df_processed['TotalBalance_normalized'] = df_processed['TotalBalance_normalized'] * 20 + 5
+    df['TotalBalance_normalized'] = (df['TotalBalance'] - df['TotalBalance'].min()) / (df['TotalBalance'].max() - df['TotalBalance'].min())
+    df['TotalBalance_normalized'] = df['TotalBalance_normalized'] * 20 + 5
     
-    fig = px.scatter(df_processed, 
+    fig = px.scatter(df, 
                     x='YearsWithBank', 
                     y='MonthlyBankFees',
                     color='Churn Label',
@@ -506,7 +468,7 @@ elif page == "Customer Segments":
     service_cols = ['OnlineBanking', 'SecureLogin2FA', 'AutomaticSavings', 
                    'FraudProtection', 'CustomerSupport', 'BillPay', 'MobilePayments']
     
-    service_usage = pd.melt(df_processed, 
+    service_usage = pd.melt(df, 
                            id_vars=['Churn Label'], 
                            value_vars=service_cols,
                            var_name='Service', 
@@ -552,11 +514,11 @@ elif page == "Customer Segments":
     st.subheader("Value Segments")
     
     # Create value segments
-    df_processed['Value_Segment'] = pd.qcut(df_processed['MonthlyBankFees'], 
-                                          q=4, 
-                                          labels=['Bronze', 'Silver', 'Gold', 'Platinum'])
+    df['Value_Segment'] = pd.qcut(df['MonthlyBankFees'], 
+                                  q=4, 
+                                  labels=['Bronze', 'Silver', 'Gold', 'Platinum'])
     
-    segment_churn = df_processed.groupby('Value_Segment')['Churn Value'].agg(['mean', 'count'])
+    segment_churn = df.groupby('Value_Segment')['Churn Value'].agg(['mean', 'count'])
     segment_churn['churn_rate'] = segment_churn['mean'] * 100
     
     fig = go.Figure()
@@ -717,7 +679,7 @@ elif page == "Risk Analysis":
 
     with col1:
         # Tenure-based risk
-        fig = px.box(df_processed, 
+        fig = px.box(df, 
                     x='Churn Label', 
                     y='YearsWithBank',
                     title='Churn Risk by Customer Tenure')
@@ -747,7 +709,7 @@ elif page == "Risk Analysis":
 
     with col2:
         # Fee-based risk
-        fig = px.box(df_processed, 
+        fig = px.box(df, 
                     x='Churn Label', 
                     y='MonthlyBankFees',
                     title='Churn Risk by Monthly Fees')
@@ -785,12 +747,12 @@ elif page == "Risk Analysis":
     
     # Calculate risk scores with enhanced visualization
     risk_scores = model.model.predict_proba(X)[:, 1]
-    df_processed['Risk_Score'] = risk_scores
-    df_processed['Risk_Category'] = pd.qcut(risk_scores, 
-                                          q=5, 
-                                          labels=['Very Low', 'Low', 'Medium', 'High', 'Very High'])
+    df['Risk_Score'] = risk_scores
+    df['Risk_Category'] = pd.qcut(risk_scores, 
+                                  q=5, 
+                                  labels=['Very Low', 'Low', 'Medium', 'High', 'Very High'])
     
-    fig = px.histogram(df_processed, 
+    fig = px.histogram(df, 
                       x='Risk_Score',
                       color='Churn Label',
                       nbins=50,

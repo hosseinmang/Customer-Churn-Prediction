@@ -44,11 +44,19 @@ Thumbs.db
 # Project specific
 *.log
 *.csv
-*.xlsx
-*.xls
 *.db
 *.sqlite
 *.pkl
 *.h5
 *.model
-*.joblib 
+*.html
+*.pdf
+
+# Exclude general Excel and model files
+*.xlsx
+*.joblib
+
+# But allow specific files
+!data/Telco_customer_churn.xlsx
+!models/xgb_model.joblib
+!models/transformers.joblib 
