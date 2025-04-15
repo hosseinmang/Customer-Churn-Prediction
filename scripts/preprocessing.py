@@ -46,6 +46,15 @@ def prepare_features(df, transformers=None):
         Input dataframe containing the features
     transformers : dict, optional
         Dictionary containing fitted transformers for categorical features
+        
+    Returns:
+    --------
+    pandas.DataFrame
+        Feature matrix X
+    pandas.Series
+        Target variable y
+    list
+        List of feature names
     """
     if not isinstance(df, pd.DataFrame):
         raise ValueError("Input must be a pandas DataFrame")
@@ -87,7 +96,12 @@ def prepare_features(df, transformers=None):
     features = [f for f in numerical_features + categorical_features if f in df.columns]
     X = df[features]
     
-    return X
+    # Get target variable if it exists
+    y = None
+    if 'Churn Label' in df.columns:
+        y = df['Churn Label'].map({'Yes': 1, 'No': 0})
+    
+    return X, y, features
 
 if __name__ == "__main__":
     # Test the functions

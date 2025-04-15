@@ -611,11 +611,11 @@ try:
                     transformers = joblib.load(transformers_path)
                     
                     # Preprocess the input data
-                    processed_data = prepare_features(input_df, transformers)
+                    X, _, _ = prepare_features(input_df, transformers)
                     
                     # Make prediction
-                    prediction = model.predict(processed_data)[0]
-                    probability = model.predict_proba(processed_data)[0][1]
+                    prediction = model.predict(X)[0]
+                    probability = model.predict_proba(X)[0][1]
                     
                     # Display results with custom styling
                     st.markdown("---")
