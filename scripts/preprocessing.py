@@ -38,7 +38,15 @@ def preprocess_data(df):
     return df
 
 def prepare_features(df, transformers=None):
-    """Prepare features for modeling"""
+    """Prepare features for modeling
+    
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        Input dataframe containing the features
+    transformers : dict, optional
+        Dictionary containing fitted transformers for categorical features
+    """
     if not isinstance(df, pd.DataFrame):
         raise ValueError("Input must be a pandas DataFrame")
     
