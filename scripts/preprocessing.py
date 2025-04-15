@@ -1,120 +1,105 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 
 def preprocess_data(df):
-    """Preprocess the raw data for analysis and modeling"""
-    # Create a copy to avoid modifying the original dataframe
-    df = df.copy()
-    
-    # Define numerical and categorical columns
-    numerical_cols = ['Tenure Months', 'Monthly Charges', 'Total Charges']
-    categorical_cols = ['Contract', 'Internet Service', 'Online Security',
-                       'Online Backup', 'Device Protection', 'Tech Support',
-                       'Streaming TV', 'Streaming Movies', 'Payment Method',
-                       'Paperless Billing']
-    
-    # Handle numerical columns
-    for col in numerical_cols:
-        if col in df.columns:
-            # Remove currency symbols and commas if present
-            if df[col].dtype == 'object':
-                df[col] = df[col].astype(str).str.replace('$', '').str.replace(',', '')
-            # Convert to numeric, coerce errors to NaN
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-    
-    # Handle categorical columns
-    for col in categorical_cols:
-        if col in df.columns:
-            # Fill NaN values with 'Unknown'
-            df[col] = df[col].fillna('Unknown')
-            # Convert to string type
-            df[col] = df[col].astype(str)
-    
-    # Create Churn Label if it doesn't exist (1 for Yes, 0 for No)
-    if 'Churn Label' not in df.columns and 'Churn Value' in df.columns:
-        df['Churn Label'] = df['Churn Value'].map({1: 'Yes', 0: 'No'})
-    
-    return df
-
-def prepare_features(df, transformers=None):
-    """Prepare features for modeling
+    """
+    Preprocess the customer churn data for modeling.
     
     Parameters:
     -----------
     df : pandas.DataFrame
-        Input dataframe containing the features
-    transformers : dict, optional
-        Dictionary containing fitted transformers for categorical features
+        Raw customer data
         
     Returns:
     --------
     pandas.DataFrame
+        Preprocessed data ready for modeling
+    dict
+        Dictionary containing fitted encoders and scalers
+    """
+    # Create a copy
+    df_processed = df.copy()
+    
+    # Drop location-specific columns
+    location_cols = ['City', 'State', 'Country', 'Zip Code', 'Lat Long', 'Latitude', 'Longitude']
+    df_processed = df_processed.drop(columns=location_cols, errors='ignore')
+    
+    # Convert Total Charges to numeric before renaming
+    df_processed['Total Charges'] = pd.to_numeric(df_processed['Total Charges'], errors='coerce')
+    df_processed['Total Charges'] = df_processed['Total Charges'].fillna(0)
+    
+    # Rename columns to match banking context
+    column_mapping = {
+        'Monthly Charges': 'MonthlyBankFees',
+        'Total Charges': 'TotalBalance',
+        'Tenure Months': 'YearsWithBank',
+        'Phone Service': 'DebitCard',
+        'Multiple Lines': 'CreditCard',
+        'Internet Service': 'OnlineBanking',
+        'Online Security': 'SecureLogin2FA',
+        'Online Backup': 'AutomaticSavings',
+        'Device Protection': 'FraudProtection',
+        'Tech Support': 'CustomerSupport',
+        'Streaming TV': 'BillPay',
+        'Streaming Movies': 'MobilePayments'
+    }
+    df_processed = df_processed.rename(columns=column_mapping)
+    
+    # Convert YearsWithBank from months to years
+    df_processed['YearsWithBank'] = df_processed['YearsWithBank'] / 12
+    
+    # Initialize dictionary to store transformers
+    transformers = {}
+    
+    # Encode categorical variables
+    categorical_cols = df_processed.select_dtypes(include=['object']).columns
+    categorical_cols = [col for col in categorical_cols if col not in ['CustomerID', 'Churn Label', 'Churn Reason']]
+    
+    for col in categorical_cols:
+        le = LabelEncoder()
+        df_processed[col] = le.fit_transform(df_processed[col])
+        transformers[f'{col}_encoder'] = le
+    
+    # Scale numerical features
+    numerical_cols = ['YearsWithBank', 'MonthlyBankFees', 'TotalBalance']
+    scaler = StandardScaler()
+    df_processed[numerical_cols] = scaler.fit_transform(df_processed[numerical_cols])
+    transformers['numerical_scaler'] = scaler
+    
+    return df_processed, transformers
+
+def prepare_features(df):
+    """
+    Prepare feature matrix X and target variable y
+    
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        Preprocessed data
+        
+    Returns:
+    --------
+    numpy.ndarray
         Feature matrix X
-    pandas.Series
+    numpy.ndarray
         Target variable y
     list
-        List of feature names
+        Feature names
     """
-    if not isinstance(df, pd.DataFrame):
-        raise ValueError("Input must be a pandas DataFrame")
-    
-    # Create a copy to avoid modifying the original dataframe
-    df = df.copy()
-    
     # Define features to use
-    numerical_features = ['Tenure Months', 'Monthly Charges', 'Total Charges']
-    categorical_features = ['Contract', 'Internet Service', 'Online Security',
-                          'Online Backup', 'Device Protection', 'Tech Support',
-                          'Payment Method', 'Paperless Billing']
+    feature_cols = [
+        'YearsWithBank', 'MonthlyBankFees', 'TotalBalance',
+        'DebitCard', 'CreditCard', 'OnlineBanking', 'SecureLogin2FA',
+        'AutomaticSavings', 'FraudProtection', 'CustomerSupport',
+        'BillPay', 'MobilePayments', 'Contract', 'PaperlessBilling',
+        'PaymentMethod'
+    ]
     
-    # Handle numerical features
-    for feature in numerical_features:
-        if feature in df.columns:
-            # Fill missing values with median
-            df[feature] = df[feature].fillna(df[feature].median())
+    # Remove any columns that don't exist in the dataframe
+    feature_cols = [col for col in feature_cols if col in df.columns]
     
-    # Handle categorical features
-    if transformers is not None:
-        # Use loaded transformers if available
-        for feature in categorical_features:
-            if feature in df.columns and f'{feature}_encoder' in transformers:
-                le = transformers[f'{feature}_encoder']
-                df[feature] = df[feature].fillna('Unknown')
-                df[feature] = le.transform(df[feature].astype(str))
-    else:
-        # Initialize new transformers if none provided
-        label_encoders = {}
-        for feature in categorical_features:
-            if feature in df.columns:
-                le = LabelEncoder()
-                df[feature] = df[feature].fillna('Unknown')
-                df[feature] = le.fit_transform(df[feature].astype(str))
-                label_encoders[feature] = le
+    X = df[feature_cols].values
+    y = df['Churn Value'].values
     
-    # Select features for modeling
-    features = [f for f in numerical_features + categorical_features if f in df.columns]
-    X = df[features]
-    
-    # Get target variable if it exists
-    y = None
-    if 'Churn Label' in df.columns:
-        y = df['Churn Label'].map({'Yes': 1, 'No': 0})
-    
-    return X, y, features
-
-if __name__ == "__main__":
-    # Test the functions
-    test_df = pd.DataFrame({
-        'Tenure Months': [12, 24, 36],
-        'Monthly Charges': ['$50.00', '$75.50', '$100.00'],
-        'Contract': ['Month-to-month', 'One year', 'Two year'],
-        'Churn Value': [1, 0, 0]
-    })
-    
-    processed_df = preprocess_data(test_df)
-    features_df = prepare_features(processed_df)
-    print("Processed DataFrame:")
-    print(processed_df.head())
-    print("\nFeatures DataFrame:")
-    print(features_df.head())
+    return X, y, feature_cols

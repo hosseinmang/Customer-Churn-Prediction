@@ -49,8 +49,6 @@ Thumbs.db
 *.pkl
 *.h5
 *.model
-*.html
-*.pdf
 
 # Exclude general Excel and model files
 *.xlsx
