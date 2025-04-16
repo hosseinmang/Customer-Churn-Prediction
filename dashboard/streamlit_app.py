@@ -25,7 +25,7 @@ from preprocessing import preprocess_data, prepare_features
 # Set page config
 st.set_page_config(
     page_title="Customer Churn Analytics",
-    page_icon="🏦",
+    page_icon="<i class='fas fa-chart-line'></i>",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -177,10 +177,12 @@ st.markdown("""
 # Title and description with enhanced styling
 st.markdown("""
     <div style='text-align: center; padding: 2rem 0;'>
-        <h1 style='font-size: 3rem; margin-bottom: 1rem;'>🏦 Banking Customer Churn Analytics</h1>
+        <h1 style='font-size: 3rem; margin-bottom: 1rem;'>
+            <i class="fas fa-chart-line"></i> Banking Customer Churn Analytics
+        </h1>
         <p style='font-size: 1.2rem; color: #7f8c8d; max-width: 800px; margin: 0 auto;'>
-This interactive dashboard provides comprehensive insights into customer churn patterns and risk factors, 
-helping identify and retain at-risk customers through data-driven decisions.
+            This interactive dashboard provides comprehensive insights into customer churn patterns and risk factors, 
+            helping identify and retain at-risk customers through data-driven decisions.
         </p>
     </div>
 """, unsafe_allow_html=True)
@@ -241,7 +243,12 @@ except Exception as e:
     st.stop()
 
 # Sidebar
-st.sidebar.header("📊 Dashboard Navigation")
+st.sidebar.markdown("""
+    <h3>
+        <i class="fas fa-bars"></i> Dashboard Navigation
+    </h3>
+""", unsafe_allow_html=True)
+
 page = st.sidebar.selectbox(
     "Choose a page",
     ["Executive Summary", "Customer Segments", "Risk Analysis", "Predictive Tools"]
@@ -456,10 +463,10 @@ elif page == "Customer Segments":
         - Low-balance accounts show higher churn sensitivity
     
     #### Business Insights:
-    - 🎯 **Critical Period**: Focus retention efforts on 1-3 year customers
-    - 💰 **Fee Strategy**: Consider graduated fee structure based on tenure
-    - 🏦 **Balance Growth**: Incentivize account balance growth to improve retention
-    - 🤝 **Relationship Building**: Extra support needed for new customers (<2 years)
+    - <i class="fas fa-bullseye"></i> **Critical Period**: Focus retention efforts on 1-3 year customers
+    - <i class="fas fa-coins"></i> **Fee Strategy**: Consider graduated fee structure based on tenure
+    - <i class="fas fa-university"></i> **Balance Growth**: Incentivize account balance growth to improve retention
+    - <i class="fas fa-handshake"></i> **Relationship Building**: Extra support needed for new customers (<2 years)
     """)
 
     # Service Adoption Analysis
@@ -485,27 +492,27 @@ elif page == "Customer Segments":
 
     # Add analysis and insights
     st.markdown("""
-    ### 📱 Service Adoption Analysis
+    ### <i class="fas fa-mobile-alt"></i> Service Adoption Analysis
     
     #### Key Patterns:
     1. **Digital Services Impact**
-        - Online banking users show 45% lower churn rate
-        - Mobile payments adoption correlates with higher retention
-        - 2FA security features indicate customer commitment
+        - <i class="fas fa-chart-line"></i> Online banking users show 45% lower churn rate
+        - <i class="fas fa-mobile-alt"></i> Mobile payments adoption correlates with higher retention
+        - <i class="fas fa-shield-alt"></i> 2FA security features indicate customer commitment
     
     2. **Service Bundling Effects**
-        - Customers using 3+ services show 60% lower churn risk
-        - Automatic savings users demonstrate highest loyalty
-        - Bill Pay service adoption indicates long-term commitment
+        - <i class="fas fa-layer-group"></i> Customers using 3+ services show 60% lower churn risk
+        - <i class="fas fa-piggy-bank"></i> Automatic savings users demonstrate highest loyalty
+        - <i class="fas fa-file-invoice-dollar"></i> Bill Pay service adoption indicates long-term commitment
     
     #### Business Recommendations:
-    - 🌟 **Service Promotion**: 
+    - <i class="fas fa-star"></i> **Service Promotion**: 
         - Target single-service customers for additional service adoption
         - Focus on digital banking onboarding for new customers
-    - 🎁 **Bundle Strategy**: 
+    - <i class="fas fa-gift"></i> **Bundle Strategy**: 
         - Create attractive service bundles to encourage multiple service adoption
         - Offer trial periods for premium services
-    - 🛡️ **Security Focus**: 
+    - <i class="fas fa-shield-alt"></i> **Security Focus**: 
         - Promote security features as premium account benefit
         - Highlight fraud protection success stories
     """)
@@ -543,7 +550,7 @@ elif page == "Customer Segments":
     
     # Add analysis and insights
     st.markdown("""
-    ### 💎 Value Segment Analysis
+    ### <i class="fas fa-gem"></i> Value Segment Analysis
     
     #### Segment Characteristics:
     1. **Platinum Segment**
@@ -567,32 +574,32 @@ elif page == "Customer Segments":
         - Most price sensitive
     
     #### Strategic Recommendations:
-    - 🔝 **Platinum Strategy**: 
+    - <i class="fas fa-crown"></i> **Platinum Strategy**: 
         - Focus on personalized service and relationship banking
         - Implement VIP support program
         - Early warning system for dissatisfaction
     
-    - 🏆 **Gold Strategy**: 
+    - <i class="fas fa-trophy"></i> **Gold Strategy**: 
         - Create clear upgrade path to Platinum
         - Reward loyalty with premium service trials
         - Focus on digital service adoption
     
-    - 🥈 **Silver Strategy**: 
+    - <i class="fas fa-medal"></i> **Silver Strategy**: 
         - Introduce value-added services
         - Build engagement through educational programs
         - Highlight cost-saving benefits of additional services
     
-    - 🥉 **Bronze Strategy**: 
+    - <i class="fas fa-award"></i> **Bronze Strategy**: 
         - Focus on basic service reliability
         - Provide clear path for account growth
         - Identify and nurture high-potential customers
     
     #### Action Items:
-    1. 📈 Implement segment-specific retention programs
-    2. 🎯 Develop targeted upgrade paths for each segment
-    3. 💡 Create segment-specific communication strategies
-    4. 📊 Monitor segment migration patterns quarterly
-    5. 🤝 Establish feedback loops for service improvement
+    1. <i class="fas fa-chart-line"></i> Implement segment-specific retention programs
+    2. <i class="fas fa-bullseye"></i> Develop targeted upgrade paths for each segment
+    3. <i class="fas fa-lightbulb"></i> Create segment-specific communication strategies
+    4. <i class="fas fa-chart-bar"></i> Monitor segment migration patterns quarterly
+    5. <i class="fas fa-handshake"></i> Establish feedback loops for service improvement
     """)
 
 elif page == "Risk Analysis":
@@ -777,11 +784,11 @@ elif page == "Risk Analysis":
     
     #### Risk Profile Overview:
     1. **Risk Segments**:
-        - Very Low Risk (0-20%): Stable, long-term customers
-        - Low Risk (20-40%): Satisfied but monitoring needed
-        - Medium Risk (40-60%): Require attention
-        - High Risk (60-80%): Immediate intervention needed
-        - Very High Risk (80-100%): Critical retention priority
+        - <i class="fas fa-shield-alt"></i> Very Low Risk (0-20%): Stable, long-term customers
+        - <i class="fas fa-check-circle"></i> Low Risk (20-40%): Satisfied but monitoring needed
+        - <i class="fas fa-exclamation-circle"></i> Medium Risk (40-60%): Require attention
+        - <i class="fas fa-exclamation-triangle"></i> High Risk (60-80%): Immediate intervention needed
+        - <i class="fas fa-times-circle"></i> Very High Risk (80-100%): Critical retention priority
     
     2. **Distribution Patterns**:
         - Bimodal distribution indicates clear risk segments
@@ -980,16 +987,25 @@ else:  # Predictive Tools
 st.markdown("---")
 col1, col2, col3 = st.columns([1, 2, 1])
 with col1:
-    st.markdown(f"**Last Updated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    st.markdown(f"""
+        <div style='display: flex; align-items: center;'>
+            <i class="fas fa-clock"></i>
+            <span style='margin-left: 0.5rem;'><strong>Last Updated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span>
+        </div>
+    """, unsafe_allow_html=True)
 with col2:
     st.markdown("""
         <div style='text-align: center;'>
-            <p style='color: var(--text-color); font-size: 0.8rem;'>Banking Customer Churn Analytics Dashboard v1.0</p>
+            <p style='color: var(--text-color); font-size: 0.8rem;'>
+                <i class="fas fa-chart-line"></i> Banking Customer Churn Analytics Dashboard v1.0
+            </p>
         </div>
     """, unsafe_allow_html=True)
 with col3:
     st.markdown("""
         <div style='text-align: right;'>
-            <p style='color: var(--text-color);'>📊 Powered by Streamlit</p>
+            <p style='color: var(--text-color);'>
+                <i class="fas fa-chart-bar"></i> Powered by Streamlit
+            </p>
         </div>
     """, unsafe_allow_html=True)
