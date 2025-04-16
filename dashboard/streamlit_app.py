@@ -195,29 +195,66 @@ def load_data():
         data_path = os.path.join(PROJECT_ROOT, 'data', 'Telco_customer_churn.xlsx')
         if not os.path.exists(data_path):
             st.error(f"Data file not found at: {data_path}")
+            st.write("Please ensure the data file exists in the data directory.")
             return None, None, None
             
         # Load raw data
-        raw_data = pd.read_excel(data_path)
+        try:
+            raw_data = pd.read_excel(data_path)
+        except Exception as e:
+            st.error(f"Error reading data file: {str(e)}")
+            st.write("Please ensure the data file is a valid Excel file.")
+            return None, None, None
+        
+        # Verify required columns in raw data
+        raw_required_cols = ['Tenure Months', 'Monthly Charges', 'Total Charges', 'Churn Label']
+        missing_raw_cols = [col for col in raw_required_cols if col not in raw_data.columns]
+        if missing_raw_cols:
+            st.error(f"Missing required columns in raw data: {', '.join(missing_raw_cols)}")
+            st.write("Please ensure the data file contains all required columns.")
+            return None, None, None
         
         # Ensure numeric columns are properly typed
         raw_data['Tenure Months'] = pd.to_numeric(raw_data['Tenure Months'], errors='coerce')
         raw_data['Monthly Charges'] = pd.to_numeric(raw_data['Monthly Charges'], errors='coerce')
         raw_data['Total Charges'] = pd.to_numeric(raw_data['Total Charges'], errors='coerce')
         
-        # Preprocess the data
-        processed_data, transformers = preprocess_data(raw_data)
+        # Check for missing values in key columns
+        null_counts = raw_data[raw_required_cols].isnull().sum()
+        if null_counts.any():
+            st.warning("Found missing values in key columns:")
+            for col, count in null_counts[null_counts > 0].items():
+                st.write(f"- {col}: {count} missing values")
         
-        # Ensure all required columns exist
-        required_columns = ['Tenure Months', 'Monthly Charges', 'Churn Label', 'TotalBalance']
-        for col in required_columns:
-            if col not in processed_data.columns:
-                st.error(f"Required column {col} not found in processed data")
+        # Preprocess the data
+        try:
+            processed_data, transformers = preprocess_data(raw_data)
+        except Exception as e:
+            st.error(f"Error during preprocessing: {str(e)}")
+            st.write("Please check the preprocessing function for errors.")
+            return None, None, None
+        
+        # Ensure all required columns exist after preprocessing
+        required_columns = ['YearsWithBank', 'MonthlyBankFees', 'Churn Label', 'TotalBalance']
+        missing_cols = [col for col in required_columns if col not in processed_data.columns]
+        if missing_cols:
+            st.error(f"Missing required columns after preprocessing: {', '.join(missing_cols)}")
+            st.write("Please check the column mapping in the preprocessing function.")
+            return None, None, None
+        
+        # Verify data types after preprocessing
+        for col in ['YearsWithBank', 'MonthlyBankFees', 'TotalBalance']:
+            if not np.issubdtype(processed_data[col].dtype, np.number):
+                st.error(f"Column {col} is not numeric after preprocessing")
+                st.write(f"Current dtype: {processed_data[col].dtype}")
                 return None, None, None
         
         return raw_data, processed_data, transformers
+        
     except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
+        st.error(f"Unexpected error during data loading: {str(e)}")
+        st.write("Current working directory:", os.getcwd())
+        st.write("Project root:", PROJECT_ROOT)
         return None, None, None
 
 @st.cache_resource
