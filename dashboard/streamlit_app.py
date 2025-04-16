@@ -24,89 +24,152 @@ from preprocessing import preprocess_data, prepare_features
 
 # Set page config
 st.set_page_config(
-    page_title="Banking Customer Churn Analytics",
-    page_icon="��",
+    page_title="Customer Churn Analytics",
+    page_icon="🏦",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Add Font Awesome and custom CSS
+# Custom CSS for better styling
 st.markdown("""
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root {
-            --background-color: #0e1117;
-            --text-color: #e0e0e0;
-            --card-background: #1a1c23;
-            --accent-color: #4c8bf5;
-            --success-color: #28a745;
-            --warning-color: #ffc107;
-            --danger-color: #dc3545;
-            --border-color: #2d3035;
+        /* Main content styling */
+        .main {
+            background-color: #f8f9fa;
         }
-
-        .stApp {
-            background-color: var(--background-color);
-            color: var(--text-color);
-        }
-
-        .custom-container {
-            background-color: var(--card-background);
-            padding: 1.5rem;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 1rem;
-        }
-
-        .icon {
-            margin-right: 0.5rem;
-            font-size: 1.1rem;
-        }
-
-        h1, h2, h3, h4, h5, h6 {
-            color: var(--text-color) !important;
-            margin-bottom: 1rem;
-        }
-
-        .metric-card {
-            background-color: var(--card-background);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 1rem;
-            text-align: center;
-        }
-
-        .metric-value {
-            font-size: 2rem;
+        
+        /* Card styling */
+        div[data-testid="stMetricValue"] {
+            font-size: 2rem !important;
+            color: #1f77b4 !important;
             font-weight: bold;
-            color: var(--accent-color);
         }
-
-        .metric-label {
-            color: var(--text-color);
-            font-size: 0.9rem;
-            margin-top: 0.5rem;
+        
+        div[data-testid="stMetricDelta"] {
+            font-size: 1rem !important;
+            color: #2ecc71 !important;
         }
-
-        .footer {
+        
+        /* Header styling */
+        h1 {
+            color: #2c3e50;
+            font-family: 'Helvetica Neue', sans-serif;
+            padding: 1rem 0;
+            text-align: center;
+            background: linear-gradient(90deg, #1f77b4 0%, #2ecc71 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        h2 {
+            color: #34495e;
+            font-family: 'Helvetica Neue', sans-serif;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
             margin-top: 2rem;
+        }
+        
+        h3 {
+            color: #2980b9;
+            font-family: 'Helvetica Neue', sans-serif;
+        }
+        
+        /* Metric card styling */
+    .metric-card {
+            background-color: white;
+        border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        /* Highlight text */
+    .highlight {
+            color: #e74c3c;
+        font-weight: bold;
+    }
+        
+        /* Custom container */
+        .custom-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 1rem 0;
+        }
+        
+        /* Sidebar styling */
+        .css-1d391kg {
+            background-color: #2c3e50;
+        }
+        
+        /* Button styling */
+        .stButton>button {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 0.5rem 1rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .stButton>button:hover {
+            background-color: #27ae60;
+            transform: translateY(-2px);
+        }
+        
+        /* Chart container */
+        .chart-container {
+            background-color: white;
+            border-radius: 10px;
             padding: 1rem;
-            border-top: 1px solid var(--border-color);
-            color: var(--text-color);
-            font-size: 0.9rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 1rem 0;
         }
-
-        /* Plotly dark theme overrides */
-        .js-plotly-plot .plotly .main-svg {
-            background-color: var(--card-background) !important;
+        
+        /* Table styling */
+        .dataframe {
+            font-family: 'Helvetica Neue', sans-serif;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            width: 100%;
         }
-
-        .js-plotly-plot .plotly .modebar {
-            background-color: var(--card-background) !important;
+        
+        .dataframe th {
+            background-color: #2c3e50;
+            color: white;
+            padding: 0.5rem;
         }
-
-        .js-plotly-plot .plotly .modebar-btn path {
-            fill: var(--text-color) !important;
+        
+        .dataframe td {
+            padding: 0.5rem;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        /* Status indicators */
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-green {
+            background-color: #2ecc71;
+        }
+        
+        .status-yellow {
+            background-color: #f1c40f;
+        }
+        
+        .status-red {
+            background-color: #e74c3c;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -114,22 +177,10 @@ st.markdown("""
 # Title and description with enhanced styling
 st.markdown("""
     <div style='text-align: center; padding: 2rem 0;'>
-        <h1>
-            <i class="fas fa-chart-line icon"></i>
-            Banking Customer Churn Analytics
-        </h1>
-        <p style='font-size: 1.2rem; color: var(--text-color); max-width: 800px; margin: 0 auto;'>
-            Comprehensive insights into customer churn patterns and risk factors for data-driven retention strategies.
-        </p>
-    </div>
-""", unsafe_allow_html=True)
-
-# Add timestamp
-st.markdown(f"""
-    <div style='text-align: center; padding-bottom: 1rem;'>
-        <p style='font-size: 0.9rem; color: var(--text-color);'>
-            <i class="fas fa-clock icon"></i>
-            Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        <h1 style='font-size: 3rem; margin-bottom: 1rem;'>🏦 Banking Customer Churn Analytics</h1>
+        <p style='font-size: 1.2rem; color: #7f8c8d; max-width: 800px; margin: 0 auto;'>
+This interactive dashboard provides comprehensive insights into customer churn patterns and risk factors, 
+helping identify and retain at-risk customers through data-driven decisions.
         </p>
     </div>
 """, unsafe_allow_html=True)
@@ -190,95 +241,73 @@ except Exception as e:
     st.stop()
 
 # Sidebar
-st.sidebar.markdown("""
-    <div style='padding: 1rem 0;'>
-        <h3><i class="fas fa-bars icon"></i> Dashboard Navigation</h3>
-    </div>
-""", unsafe_allow_html=True)
-
+st.sidebar.header("📊 Dashboard Navigation")
 page = st.sidebar.selectbox(
     "Choose a page",
     ["Executive Summary", "Customer Segments", "Risk Analysis", "Predictive Tools"]
 )
 
-# Update metric cards with Font Awesome icons
-def create_metric_card(title, value, trend=None, icon=None):
-    icon_html = f'<i class="fas fa-{icon} icon"></i>' if icon else ''
-    trend_html = f'<div style="color: var(--success-color); font-size: 0.9rem;">{trend}</div>' if trend else ''
-    
-    return f"""
-        <div class='metric-card'>
-            <h4 style='color: var(--text-color); margin-bottom: 0.5rem;'>{icon_html} {title}</h4>
-            <div style='font-size: 2rem; color: var(--text-color); font-weight: bold;'>{value}</div>
-            {trend_html}
-        </div>
-    """
-
-# Update the Executive Summary page with dark mode compatible visualizations
+# Executive Summary Page
 if page == "Executive Summary":
     st.markdown("""
         <div class='custom-container'>
-            <h2><i class="fas fa-tachometer-alt icon"></i> Executive Overview</h2>
-            <p style='color: var(--text-color);'>Key performance indicators and metrics for quick insights</p>
+            <h2 style='margin-top: 0;'>Executive Overview</h2>
+            <p style='color: #7f8c8d;'>Key performance indicators and metrics for quick insights</p>
         </div>
     """, unsafe_allow_html=True)
     
-    # Key metrics row with Font Awesome icons
+    # Key metrics row
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         total_customers = len(raw_df)
-        st.markdown(
-            create_metric_card(
-                "Total Customers",
-                f"{total_customers:,}",
-                "↑ 5% from last month",
-                "users"
-            ),
-            unsafe_allow_html=True
-        )
+        st.markdown("""
+            <div class='metric-card'>
+                <h4 style='color: #7f8c8d; margin-bottom: 0.5rem;'>Total Customers</h4>
+                <div style='font-size: 2rem; color: #2c3e50; font-weight: bold;'>{:,}</div>
+                <div style='color: #27ae60; font-size: 0.9rem;'>↑ 5% from last month</div>
+            </div>
+        """.format(total_customers), unsafe_allow_html=True)
     
     with col2:
         churn_rate = (raw_df['Churn Value'].sum() / len(raw_df)) * 100
-        st.markdown(
-            create_metric_card(
-                "Churn Rate",
-                f"{churn_rate:.1f}%",
-                target="Target: 20%",
-                icon="exclamation-triangle"
-            ),
-            unsafe_allow_html=True
-        )
+        st.markdown("""
+            <div class='metric-card'>
+                <h4 style='color: #7f8c8d; margin-bottom: 0.5rem;'>Churn Rate</h4>
+                <div style='font-size: 2rem; color: #{}; font-weight: bold;'>{:.1f}%</div>
+                <div style='color: #{}; font-size: 0.9rem;'>Target: 20%</div>
+            </div>
+        """.format(
+            '27ae60' if churn_rate <= 20 else 'e74c3c',
+            churn_rate,
+            'e74c3c' if churn_rate > 20 else '27ae60'
+        ), unsafe_allow_html=True)
     
     with col3:
         avg_tenure = raw_df['Tenure Months'].mean() / 12  # Convert months to years
-        st.markdown(
-            create_metric_card(
-                "Avg. Customer Tenure",
-                f"{avg_tenure:.1f} years",
-                "↑ 0.5 yr from last quarter",
-                "clock"
-            ),
-            unsafe_allow_html=True
-        )
+        st.markdown("""
+            <div class='metric-card'>
+                <h4 style='color: #7f8c8d; margin-bottom: 0.5rem;'>Avg. Customer Tenure</h4>
+                <div style='font-size: 2rem; color: #2c3e50; font-weight: bold;'>{:.1f} years</div>
+                <div style='color: #27ae60; font-size: 0.9rem;'>↑ 0.5 yr from last quarter</div>
+            </div>
+        """.format(avg_tenure), unsafe_allow_html=True)
     
     with col4:
         avg_monthly = raw_df['Monthly Charges'].mean()
-        st.markdown(
-            create_metric_card(
-                "Avg. Monthly Fees",
-                f"${avg_monthly:.2f}",
-                "↑ 2% from last month",
-                "dollar-sign"
-            ),
-            unsafe_allow_html=True
-        )
+        st.markdown("""
+            <div class='metric-card'>
+                <h4 style='color: #7f8c8d; margin-bottom: 0.5rem;'>Avg. Monthly Fees</h4>
+                <div style='font-size: 2rem; color: #2c3e50; font-weight: bold;'>${:.2f}</div>
+                <div style='color: #27ae60; font-size: 0.9rem;'>↑ 2% from last month</div>
+            </div>
+        """.format(avg_monthly), unsafe_allow_html=True)
 
     # Churn Overview Section
     st.markdown("""
         <div class='custom-container'>
             <h2 style='margin-top: 0;'>Churn Overview</h2>
-            <p style='color: var(--text-color);'>Analysis of customer churn patterns and primary reasons</p>
+            <p style='color: #7f8c8d;'>Analysis of customer churn patterns and primary reasons</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -325,7 +354,7 @@ if page == "Executive Summary":
     st.markdown("""
         <div class='custom-container'>
             <h2 style='margin-top: 0;'>Key Insights</h2>
-            <p style='color: var(--text-color);'>Critical findings and actionable recommendations</p>
+            <p style='color: #7f8c8d;'>Critical findings and actionable recommendations</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -333,48 +362,36 @@ if page == "Executive Summary":
 
     with col1:
         st.markdown("""
-            <div style='background-color: var(--card-background); padding: 1.5rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
-                <h3><i class="fas fa-lightbulb icon"></i> Critical Findings</h3>
-                <ul style='color: var(--text-color); list-style-type: none; padding-left: 0;'>
-                    <li style='margin-bottom: 0.8rem;'>
-                        <i class="fas fa-exclamation-circle icon"></i>
-                        <strong>High-Risk Period:</strong> First 2 years show highest churn probability
-                    </li>
-                    <li style='margin-bottom: 0.8rem;'>
-                        <i class="fas fa-chart-line icon"></i>
-                        <strong>Price Sensitivity:</strong> Threshold at $70-80 monthly fees
-                    </li>
-                    <li style='margin-bottom: 0.8rem;'>
-                        <i class="fas fa-mobile-alt icon"></i>
-                        <strong>Service Impact:</strong> Digital banking users show 45% lower churn
-                    </li>
-                    <li style='margin-bottom: 0.8rem;'>
-                        <i class="fas fa-file-contract icon"></i>
-                        <strong>Contract Effect:</strong> Long-term contracts reduce churn by 67%
-                    </li>
+            <div style='background-color: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
+                <h3 style='color: #2c3e50; margin-bottom: 1rem;'>Critical Findings</h3>
+                <ul style='color: #34495e; list-style-type: none; padding-left: 0;'>
+                    <li style='margin-bottom: 0.8rem;'>🎯 <strong>High-Risk Period:</strong> First 2 years show highest churn probability</li>
+                    <li style='margin-bottom: 0.8rem;'>💰 <strong>Price Sensitivity:</strong> Threshold at $70-80 monthly fees</li>
+                    <li style='margin-bottom: 0.8rem;'>🔒 <strong>Service Impact:</strong> Digital banking users show 45% lower churn</li>
+                    <li style='margin-bottom: 0.8rem;'>📈 <strong>Contract Effect:</strong> Long-term contracts reduce churn by 67%</li>
                 </ul>
             </div>
         """, unsafe_allow_html=True)
 
     with col2:
         st.markdown("""
-            <div style='background-color: var(--card-background); padding: 1.5rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
-                <h3><i class="fas fa-tasks icon"></i> Action Items</h3>
-                <ul style='color: var(--text-color); list-style-type: none; padding-left: 0;'>
+            <div style='background-color: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
+                <h3 style='color: #2c3e50; margin-bottom: 1rem;'>Action Items</h3>
+                <ul style='color: #34495e; list-style-type: none; padding-left: 0;'>
                     <li style='margin-bottom: 0.8rem;'>
-                        <i class="fas fa-bell icon" style="color: var(--danger-color);"></i>
+                        <span class='status-indicator status-red'></span>
                         Implement early warning system for new customers
                     </li>
                     <li style='margin-bottom: 0.8rem;'>
-                        <i class="fas fa-chart-pie icon" style="color: var(--warning-color);"></i>
+                        <span class='status-indicator status-yellow'></span>
                         Review pricing strategy for sensitive segments
                     </li>
                     <li style='margin-bottom: 0.8rem;'>
-                        <i class="fas fa-mobile-alt icon" style="color: var(--success-color);"></i>
+                        <span class='status-indicator status-green'></span>
                         Promote digital service adoption
                     </li>
                     <li style='margin-bottom: 0.8rem;'>
-                        <i class="fas fa-handshake icon" style="color: var(--success-color);"></i>
+                        <span class='status-indicator status-green'></span>
                         Incentivize long-term contracts
                     </li>
                 </ul>
@@ -385,7 +402,7 @@ elif page == "Customer Segments":
     st.markdown("""
         <div class='custom-container'>
             <h2 style='margin-top: 0;'>Customer Segmentation Analysis</h2>
-            <p style='color: var(--text-color);'>Deep dive into customer segments and behavior patterns</p>
+            <p style='color: #7f8c8d;'>Deep dive into customer segments and behavior patterns</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -393,7 +410,7 @@ elif page == "Customer Segments":
     st.markdown("""
         <div class='custom-container'>
             <h3 style='margin-top: 0;'>Customer Value Matrix</h3>
-            <p style='color: var(--text-color);'>Relationship between customer tenure, fees, and total balance</p>
+            <p style='color: #7f8c8d;'>Relationship between customer tenure, fees, and total balance</p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -582,7 +599,7 @@ elif page == "Risk Analysis":
     st.markdown("""
         <div class='custom-container'>
             <h2 style='margin-top: 0;'>Churn Risk Analysis</h2>
-            <p style='color: var(--text-color);'>In-depth analysis of churn risk factors and patterns</p>
+            <p style='color: #7f8c8d;'>In-depth analysis of churn risk factors and patterns</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -590,7 +607,7 @@ elif page == "Risk Analysis":
     st.markdown("""
         <div class='custom-container'>
             <h3 style='margin-top: 0;'>Key Risk Factors</h3>
-            <p style='color: var(--text-color);'>Impact of different features on customer churn probability</p>
+            <p style='color: #7f8c8d;'>Impact of different features on customer churn probability</p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -724,7 +741,7 @@ elif page == "Risk Analysis":
     st.markdown("""
         <div class='custom-container'>
             <h3 style='margin-top: 0;'>Risk Distribution Analysis</h3>
-            <p style='color: var(--text-color);'>Distribution of churn risk scores across customer base</p>
+            <p style='color: #7f8c8d;'>Distribution of churn risk scores across customer base</p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -967,163 +984,13 @@ with col1:
 with col2:
     st.markdown("""
         <div style='text-align: center;'>
-            <p style='color: var(--text-color);'>Created with ❤️ by GitHub Copilot</p>
-            <p style='color: var(--text-color); font-size: 0.8rem;'>Banking Customer Churn Analytics Dashboard v1.0</p>
+            <p style='color: #7f8c8d;'>Created with ❤️ by GitHub Copilot</p>
+            <p style='color: #7f8c8d; font-size: 0.8rem;'>Banking Customer Churn Analytics Dashboard v1.0</p>
         </div>
     """, unsafe_allow_html=True)
 with col3:
     st.markdown("""
         <div style='text-align: right;'>
-            <p style='color: var(--text-color);'>📊 Powered by Streamlit</p>
+            <p style='color: #7f8c8d;'>📊 Powered by Streamlit</p>
         </div>
     """, unsafe_allow_html=True)
-
-# Update plotly theme for dark mode
-def create_dark_plotly_theme():
-    return {
-        'layout': {
-            'plot_bgcolor': '#1a1c23',
-            'paper_bgcolor': '#1a1c23',
-            'font': {'color': '#e0e0e0'},
-            'xaxis': {
-                'gridcolor': '#2d3035',
-                'linecolor': '#2d3035',
-                'zerolinecolor': '#2d3035'
-            },
-            'yaxis': {
-                'gridcolor': '#2d3035',
-                'linecolor': '#2d3035',
-                'zerolinecolor': '#2d3035'
-            }
-        }
-    }
-
-# Apply dark theme to all plotly figures
-plotly_dark_theme = create_dark_plotly_theme()
-
-# Update plotly figures with dark theme
-for fig in [churn_dist_fig, reasons_fig, tenure_fig, fees_fig, risk_dist_fig]:
-    fig.update_layout(**plotly_dark_theme['layout'])
-    fig.update_layout(
-        title_font_color='#e0e0e0',
-        legend_font_color='#e0e0e0',
-        coloraxis_colorbar_tickfont_color='#e0e0e0'
-    )
-
-# Update the risk assessment indicators
-def show_risk_indicator(risk_score):
-    if risk_score < 0.3:
-        return """
-            <div style='display: flex; align-items: center;'>
-                <i class="fas fa-check-circle icon" style="color: var(--success-color);"></i>
-                <span style='color: var(--success-color);'>Low Risk of Churn</span>
-            </div>
-        """
-    elif risk_score < 0.7:
-        return """
-            <div style='display: flex; align-items: center;'>
-                <i class="fas fa-exclamation-triangle icon" style="color: var(--warning-color);"></i>
-                <span style='color: var(--warning-color);'>Medium Risk of Churn</span>
-            </div>
-        """
-    else:
-        return """
-            <div style='display: flex; align-items: center;'>
-                <i class="fas fa-times-circle icon" style="color: var(--danger-color);"></i>
-                <span style='color: var(--danger-color);'>High Risk of Churn</span>
-            </div>
-        """
-
-# Update recommendations with icons
-def show_recommendation(icon, text, color="var(--accent-color)"):
-    return f"""
-        <div style='display: flex; align-items: center; margin-bottom: 0.5rem;'>
-            <i class="fas fa-{icon} icon" style="color: {color};"></i>
-            <span style='color: var(--text-color);'>{text}</span>
-        </div>
-    """
-
-def main():
-    # Title and description
-    st.markdown("""
-        <h1><i class="fas fa-chart-line icon"></i>Banking Customer Churn Analytics Dashboard</h1>
-        <div class="custom-container">
-            <p>This dashboard provides real-time insights into customer churn patterns and risk analysis.</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # Sidebar
-    with st.sidebar:
-        st.markdown("""
-            <div class="custom-container">
-                <h3><i class="fas fa-sliders-h icon"></i>Controls</h3>
-            </div>
-        """, unsafe_allow_html=True)
-        risk_threshold = st.slider("Risk Threshold", 0.0, 1.0, 0.5, 0.1)
-        time_period = st.selectbox("Time Period", ["Last 30 Days", "Last 90 Days", "Last 180 Days", "All Time"])
-
-    # Main content
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("""
-            <div class="metric-card">
-                <i class="fas fa-user-minus fa-2x" style="color: var(--danger-color)"></i>
-                <div class="metric-value">12.5%</div>
-                <div class="metric-label">Churn Rate</div>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-            <div class="metric-card">
-                <i class="fas fa-users fa-2x" style="color: var(--accent-color)"></i>
-                <div class="metric-value">85.2%</div>
-                <div class="metric-label">Customer Retention</div>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-            <div class="metric-card">
-                <i class="fas fa-exclamation-triangle fa-2x" style="color: var(--warning-color)"></i>
-                <div class="metric-value">245</div>
-                <div class="metric-label">High Risk Customers</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    # Critical Findings Section
-    st.markdown("""
-        <div class="custom-container">
-            <h2><i class="fas fa-exclamation-circle icon"></i>Critical Findings</h2>
-            <ul>
-                <li><i class="fas fa-arrow-up icon" style="color: var(--danger-color)"></i>15% increase in churn rate among premium customers</li>
-                <li><i class="fas fa-clock icon" style="color: var(--warning-color)"></i>Average customer tenure decreased by 8 months</li>
-                <li><i class="fas fa-dollar-sign icon" style="color: var(--success-color)"></i>High correlation between monthly fees and churn probability</li>
-            </ul>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # Action Items Section
-    st.markdown("""
-        <div class="custom-container">
-            <h2><i class="fas fa-tasks icon"></i>Action Items</h2>
-            <ul>
-                <li><i class="fas fa-phone icon"></i>Initiate contact with high-risk customers</li>
-                <li><i class="fas fa-gift icon"></i>Develop retention offers for premium segment</li>
-                <li><i class="fas fa-chart-bar icon"></i>Review fee structure for long-term customers</li>
-            </ul>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # Footer
-    st.markdown("""
-        <div class="footer">
-            <i class="fas fa-info-circle icon"></i>Last updated: {}
-            <br>
-            <i class="fas fa-code icon"></i>Powered by Advanced Analytics
-        </div>
-    """.format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), unsafe_allow_html=True)
-
-if __name__ == "__main__":
-    main()
