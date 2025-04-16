@@ -198,26 +198,112 @@ if df is not None:
         col1, col2 = st.columns(2)
         
         with col1:
-            # Churn by Tenure
-            tenure_bins = pd.qcut(df['Tenure Months'].dropna(), q=5)
-            tenure_churn = df.dropna(subset=['Tenure Months']).groupby(tenure_bins)['Churn Value'].mean().reset_index()
-            fig = px.line(tenure_churn,
-                         x='Tenure Months',
-                         y='Churn Value',
-                         title='Churn Rate by Customer Tenure',
-                         labels={'Churn Value': 'Churn Rate'})
-            st.plotly_chart(fig, use_container_width=True)
-            
+            # Churn by Tenure - Modified approach
+            try:
+                # Create tenure ranges
+                df['Tenure_Range'] = pd.cut(
+                    df['Tenure Months'].dropna(),
+                    bins=[0, 12, 24, 36, 48, float('inf')],
+                    labels=['0-12 months', '13-24 months', '25-36 months', '37-48 months', '48+ months']
+                )
+                
+                # Calculate churn rate by tenure range
+                tenure_churn = df.groupby('Tenure_Range')['Churn Value'].agg(['mean', 'count']).reset_index()
+                tenure_churn['mean'] = tenure_churn['mean'] * 100  # Convert to percentage
+                
+                # Create bar chart
+                fig = px.bar(
+                    tenure_churn,
+                    x='Tenure_Range',
+                    y='mean',
+                    text=tenure_churn['mean'].round(1).astype(str) + '%',
+                    title='Churn Rate by Customer Tenure',
+                    labels={
+                        'Tenure_Range': 'Tenure Range',
+                        'mean': 'Churn Rate (%)'
+                    },
+                    color='mean',
+                    color_continuous_scale='RdYlGn_r'
+                )
+                fig.update_traces(textposition='outside')
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Add insight text
+                highest_churn = tenure_churn.loc[tenure_churn['mean'].idxmax()]
+                st.info(f"🔍 Highest churn rate ({highest_churn['mean']:.1f}%) observed in {highest_churn['Tenure_Range']} segment")
+                
+            except Exception as e:
+                st.error(f"Error in tenure analysis: {str(e)}")
+        
         with col2:
-            # Payment Method Analysis
-            payment_churn = df.groupby('Payment Method')['Churn Value'].mean().reset_index()
-            fig = px.bar(payment_churn,
-                        x='Payment Method',
-                        y='Churn Value',
-                        title='Churn Rate by Payment Method',
-                        color='Churn Value',
-                        color_continuous_scale='RdYlGn_r')
-            st.plotly_chart(fig, use_container_width=True)
+            try:
+                # Payment Method Analysis with added context
+                payment_churn = df.groupby('Payment Method').agg({
+                    'Churn Value': ['mean', 'count']
+                }).reset_index()
+                
+                payment_churn.columns = ['Payment Method', 'Churn Rate', 'Count']
+                payment_churn['Churn Rate'] = payment_churn['Churn Rate'] * 100
+                
+                fig = px.bar(
+                    payment_churn,
+                    x='Payment Method',
+                    y='Churn Rate',
+                    title='Churn Rate by Payment Method',
+                    text=payment_churn['Churn Rate'].round(1).astype(str) + '%',
+                    color='Churn Rate',
+                    color_continuous_scale='RdYlGn_r'
+                )
+                fig.update_traces(textposition='outside')
+                fig.update_layout(xaxis_tickangle=-45)
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Add insight text
+                riskiest_payment = payment_churn.loc[payment_churn['Churn Rate'].idxmax()]
+                st.info(f"💳 {riskiest_payment['Payment Method']} shows highest churn rate at {riskiest_payment['Churn Rate']:.1f}%")
+                
+            except Exception as e:
+                st.error(f"Error in payment method analysis: {str(e)}")
+        
+        # Additional Risk Metrics
+        st.subheader("Risk Factor Analysis")
+        try:
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                # Contract Type Risk
+                contract_risk = df.groupby('Contract')['Churn Value'].mean() * 100
+                highest_contract_risk = contract_risk.idxmax()
+                st.metric(
+                    "Highest Risk Contract",
+                    highest_contract_risk,
+                    f"{contract_risk[highest_contract_risk]:.1f}% Churn Rate"
+                )
+            
+            with col2:
+                # Service Adoption Impact
+                service_cols = ['Online Security', 'Online Backup', 'Device Protection', 'Tech Support']
+                df['Service_Count'] = df[service_cols].apply(lambda x: (x == 'Yes').sum(), axis=1)
+                service_impact = df.groupby('Service_Count')['Churn Value'].mean() * 100
+                st.metric(
+                    "Service Impact",
+                    f"{service_impact.min():.1f}% Churn",
+                    f"with {service_impact.idxmin()} services"
+                )
+            
+            with col3:
+                # Monthly Charges Impact
+                df['Charge_Level'] = pd.qcut(df['Monthly Charges'], q=3, labels=['Low', 'Medium', 'High'])
+                charge_impact = df.groupby('Charge_Level')['Churn Value'].mean() * 100
+                highest_charge_risk = charge_impact.idxmax()
+                st.metric(
+                    "Price Sensitivity",
+                    f"{highest_charge_risk} Charges",
+                    f"{charge_impact[highest_charge_risk]:.1f}% Churn Rate"
+                )
+        
+        except Exception as e:
+            st.error(f"Error in risk metrics calculation: {str(e)}")
             
     elif page == "Financial Impact":
         st.header("Financial Impact Analysis")
