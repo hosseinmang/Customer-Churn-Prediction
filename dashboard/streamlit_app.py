@@ -49,6 +49,13 @@ def load_data():
         # Convert Total Charges to numeric
         df['Total Charges'] = pd.to_numeric(df['Total Charges'], errors='coerce')
         
+        # Fill missing values
+        df['Total Charges'].fillna(df['Monthly Charges'], inplace=True)
+        
+        # Ensure numeric columns are properly typed
+        df['Monthly Charges'] = pd.to_numeric(df['Monthly Charges'], errors='coerce')
+        df['Tenure Months'] = pd.to_numeric(df['Tenure Months'], errors='coerce')
+        
         # Calculate additional metrics
         df['Revenue_Risk'] = df['Monthly Charges'] * df['Churn Value']
         df['Customer_Lifetime'] = df['Total Charges'] / df['Monthly Charges']
@@ -123,77 +130,66 @@ if df is not None:
                         names=churn_reasons.index,
                         title='Top 5 Churn Reasons')
             st.plotly_chart(fig, use_container_width=True)
-        
-        # Key Insights
-        st.subheader("Key Business Insights")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            <div class="insight-card">
-                <h3>Risk Indicators 🚨</h3>
-                <ul>
-                    <li>Month-to-month contracts have {:.1f}x higher churn rate</li>
-                    <li>First 12 months are critical for retention</li>
-                    <li>Customers without additional services are more likely to churn</li>
-                </ul>
-            </div>
-            """.format(
-                df[df['Contract'] == 'Month-to-month']['Churn Value'].mean() / 
-                df[df['Contract'] != 'Month-to-month']['Churn Value'].mean()
-            ), unsafe_allow_html=True)
-            
-        with col2:
-            st.markdown("""
-            <div class="insight-card">
-                <h3>Opportunities 🎯</h3>
-                <ul>
-                    <li>Promote long-term contracts to reduce churn risk</li>
-                    <li>Focus on early relationship building (first year)</li>
-                    <li>Develop competitive service packages</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
             
     elif page == "Customer Segments":
         st.header("Customer Segmentation Analysis")
         
-        # Tenure vs Charges Analysis
-        st.subheader("Customer Distribution")
-        fig = px.scatter(df,
-                        x='Tenure Months',
-                        y='Monthly Charges',
-                        color='Churn Label',
-                        size='Total Charges',
-                        hover_data=['Contract', 'Payment Method'],
-                        title='Customer Distribution by Tenure and Monthly Charges',
-                        labels={'Tenure Months': 'Tenure (Months)',
-                               'Monthly Charges': 'Monthly Charges ($)'},
-                        color_discrete_map={'Yes': '#ff6b6b', 'No': '#4ecdc4'})
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Segment Analysis
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Contract Distribution
-            contract_dist = df['Contract'].value_counts()
-            fig = px.pie(values=contract_dist.values,
-                        names=contract_dist.index,
-                        title='Customer Contract Distribution')
+        try:
+            # Clean and prepare data for visualization
+            plot_df = df.copy()
+            plot_df = plot_df.dropna(subset=['Tenure Months', 'Monthly Charges', 'Total Charges'])
+            
+            # Normalize Total Charges for bubble size
+            plot_df['Size'] = (plot_df['Total Charges'] - plot_df['Total Charges'].min()) / \
+                            (plot_df['Total Charges'].max() - plot_df['Total Charges'].min()) * 30 + 5
+            
+            # Create scatter plot with cleaned data
+            fig = px.scatter(plot_df,
+                           x='Tenure Months',
+                           y='Monthly Charges',
+                           color='Churn Label',
+                           size='Size',
+                           hover_data={
+                               'Size': False,
+                               'Total Charges': ':$.2f',
+                               'Contract': True,
+                               'Payment Method': True
+                           },
+                           title='Customer Distribution by Tenure and Monthly Charges',
+                           labels={
+                               'Tenure Months': 'Tenure (Months)',
+                               'Monthly Charges': 'Monthly Charges ($)'
+                           },
+                           color_discrete_map={'Yes': '#ff6b6b', 'No': '#4ecdc4'})
+            
             st.plotly_chart(fig, use_container_width=True)
             
-        with col2:
-            # Service Adoption
-            services = ['Online Security', 'Online Backup', 'Device Protection', 'Tech Support']
-            service_adoption = df[services].apply(lambda x: (x == 'Yes').mean() * 100)
-            fig = px.bar(x=service_adoption.index,
-                        y=service_adoption.values,
-                        title='Service Adoption Rates',
-                        labels={'x': 'Service', 'y': 'Adoption Rate (%)'},
-                        color=service_adoption.values,
-                        color_continuous_scale='Viridis')
-            st.plotly_chart(fig, use_container_width=True)
+            # Segment Analysis
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Contract Distribution
+                contract_dist = df['Contract'].value_counts()
+                fig = px.pie(values=contract_dist.values,
+                           names=contract_dist.index,
+                           title='Customer Contract Distribution')
+                st.plotly_chart(fig, use_container_width=True)
+                
+            with col2:
+                # Service Adoption
+                services = ['Online Security', 'Online Backup', 'Device Protection', 'Tech Support']
+                service_adoption = df[services].apply(lambda x: (x == 'Yes').mean() * 100)
+                fig = px.bar(x=service_adoption.index,
+                           y=service_adoption.values,
+                           title='Service Adoption Rates',
+                           labels={'x': 'Service', 'y': 'Adoption Rate (%)'},
+                           color=service_adoption.values,
+                           color_continuous_scale='Viridis')
+                st.plotly_chart(fig, use_container_width=True)
+                
+        except Exception as e:
+            st.error(f"Error in Customer Segments visualization: {str(e)}")
+            st.write("Please check the data format and try again.")
             
     elif page == "Risk Factors":
         st.header("Churn Risk Analysis")
@@ -203,8 +199,8 @@ if df is not None:
         
         with col1:
             # Churn by Tenure
-            tenure_bins = pd.qcut(df['Tenure Months'], q=5)
-            tenure_churn = df.groupby(tenure_bins)['Churn Value'].mean().reset_index()
+            tenure_bins = pd.qcut(df['Tenure Months'].dropna(), q=5)
+            tenure_churn = df.dropna(subset=['Tenure Months']).groupby(tenure_bins)['Churn Value'].mean().reset_index()
             fig = px.line(tenure_churn,
                          x='Tenure Months',
                          y='Churn Value',
@@ -304,4 +300,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.markdown(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}") 
+st.markdown(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
