@@ -984,13 +984,12 @@ with col1:
 with col2:
     st.markdown("""
         <div style='text-align: center;'>
-            <p style='color: #7f8c8d;'>Created with ❤️ by GitHub Copilot</p>
-            <p style='color: #7f8c8d; font-size: 0.8rem;'>Banking Customer Churn Analytics Dashboard v1.0</p>
+            <p style='color: var(--text-color); font-size: 0.8rem;'>Banking Customer Churn Analytics Dashboard v1.0</p>
         </div>
     """, unsafe_allow_html=True)
 with col3:
     st.markdown("""
         <div style='text-align: right;'>
-            <p style='color: #7f8c8d;'>📊 Powered by Streamlit</p>
+            <p style='color: var(--text-color);'>📊 Powered by Streamlit</p>
         </div>
     """, unsafe_allow_html=True)
