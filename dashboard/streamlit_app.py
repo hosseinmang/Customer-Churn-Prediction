@@ -419,14 +419,14 @@ elif page == "Customer Segments":
     df['TotalBalance_normalized'] = df['TotalBalance_normalized'] * 20 + 5
     
     fig = px.scatter(df, 
-                    x='YearsWithBank', 
-                    y='MonthlyBankFees',
+                    x='Tenure Months', 
+                    y='Monthly Charges',
                     color='Churn Label',
                     size='TotalBalance_normalized',
                     hover_data=['CustomerID'],
                     title='Customer Segments by Tenure and Fees',
-                    labels={'YearsWithBank': 'Years with Bank',
-                           'MonthlyBankFees': 'Monthly Fees ($)',
+                    labels={'Tenure Months': 'Tenure (Months)',
+                           'Monthly Charges': 'Monthly Fees ($)',
                            'TotalBalance_normalized': 'Total Balance ($)'},
                     color_discrete_sequence=['#2ecc71', '#e74c3c'])
     
@@ -465,8 +465,8 @@ elif page == "Customer Segments":
     # Service Adoption Analysis
     st.subheader("Service Adoption Patterns")
     
-    service_cols = ['OnlineBanking', 'SecureLogin2FA', 'AutomaticSavings', 
-                   'FraudProtection', 'CustomerSupport', 'BillPay', 'MobilePayments']
+    service_cols = ['Online Banking', 'Secure Login', 'Automatic Savings', 
+                   'Fraud Protection', 'Customer Support', 'Streaming TV', 'Streaming Movies']
     
     service_usage = pd.melt(df, 
                            id_vars=['Churn Label'], 
@@ -514,7 +514,7 @@ elif page == "Customer Segments":
     st.subheader("Value Segments")
     
     # Create value segments
-    df['Value_Segment'] = pd.qcut(df['MonthlyBankFees'], 
+    df['Value_Segment'] = pd.qcut(df['Monthly Charges'], 
                                           q=4, 
                                           labels=['Bronze', 'Silver', 'Gold', 'Platinum'])
     
@@ -681,7 +681,7 @@ elif page == "Risk Analysis":
         # Tenure-based risk
         fig = px.box(df, 
                     x='Churn Label', 
-                    y='YearsWithBank',
+                    y='Tenure Months',
                     title='Churn Risk by Customer Tenure')
         st.plotly_chart(fig, use_container_width=True)
 
@@ -711,7 +711,7 @@ elif page == "Risk Analysis":
         # Fee-based risk
         fig = px.box(df, 
                     x='Churn Label', 
-                    y='MonthlyBankFees',
+                    y='Monthly Charges',
                     title='Churn Risk by Monthly Fees')
         st.plotly_chart(fig, use_container_width=True)
 
@@ -843,7 +843,7 @@ else:  # Predictive Tools
         with col2:
             st.markdown("### Banking Services")
             debit_card = st.selectbox("Debit Card", ["No", "Yes"], index=1)
-            credit_card = st.selectbox("Credit Card", ["No phone service", "No", "Yes"], index=2)
+            credit_card = st.selectbox("Credit Card", ["No", "Yes", "No phone service"], index=1)
             online_banking = st.selectbox("Online Banking", ["DSL", "Fiber optic", "No"], index=0)
             secure_login = st.selectbox("2FA Security", ["No", "Yes", "No internet service"], index=1)
             bill_pay = st.selectbox("Bill Pay Service", ["No", "Yes", "No internet service"], index=1)
@@ -863,18 +863,18 @@ else:  # Predictive Tools
             try:
                 # Prepare input data
                 input_data = pd.DataFrame({
-                    'YearsWithBank': [years_with_bank],  # Already in years
-                    'MonthlyBankFees': [monthly_fees],
-                    'TotalBalance': [total_balance],
-                    'DebitCard': [debit_card],
-                    'CreditCard': [credit_card],
-                    'OnlineBanking': [online_banking],
-                    'SecureLogin2FA': [secure_login],
-                    'AutomaticSavings': [auto_savings],
-                    'FraudProtection': [fraud_protection],
-                    'CustomerSupport': [customer_support],
-                    'BillPay': [bill_pay],
-                    'MobilePayments': [mobile_payments],
+                    'Tenure Months': [years_with_bank * 12],  # Convert years to months
+                    'Monthly Charges': [monthly_fees],
+                    'Total Charges': [total_balance],
+                    'Phone Service': [debit_card],
+                    'Multiple Lines': [credit_card],
+                    'Internet Service': [online_banking],
+                    'Online Security': [secure_login],
+                    'Online Backup': [auto_savings],
+                    'Device Protection': [fraud_protection],
+                    'Tech Support': [customer_support],
+                    'Streaming TV': [bill_pay],
+                    'Streaming Movies': [mobile_payments],
                     'Contract': [contract_type]
                 })
                 
