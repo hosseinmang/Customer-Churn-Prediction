@@ -746,11 +746,11 @@ elif page == "Risk Analysis":
     """, unsafe_allow_html=True)
     
     # Calculate risk scores with enhanced visualization
-    risk_scores = model.model.predict_proba(X)[:, 1]
+    risk_scores = model.model.predict_proba(X)[:, 1]  # Access the underlying model
     df['Risk_Score'] = risk_scores
     df['Risk_Category'] = pd.qcut(risk_scores, 
-                                          q=5, 
-                                          labels=['Very Low', 'Low', 'Medium', 'High', 'Very High'])
+                                q=5, 
+                                labels=['Very Low', 'Low', 'Medium', 'High', 'Very High'])
     
     fig = px.histogram(df, 
                       x='Risk_Score',
@@ -884,7 +884,7 @@ else:  # Predictive Tools
                 input_processed, _ = preprocess_data(input_data)
                 
                 # Make prediction
-                risk_score = model.predict_proba(input_processed)[:, 1][0]
+                risk_score = model.model.predict_proba(input_processed)[:, 1][0]  # Access the underlying model
                 
                 # Display results
                 col1, col2 = st.columns(2)
