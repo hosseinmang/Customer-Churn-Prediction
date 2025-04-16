@@ -598,82 +598,154 @@ elif page == "Risk Analysis":
             </div>
         """, unsafe_allow_html=True)
 
-        # Ensure numeric columns are properly typed
-        numeric_cols = ['Tenure Months', 'Monthly Charges', 'TotalBalance']
+        # Ensure numeric columns are properly typed with correct column names
+        numeric_cols = ['YearsWithBank', 'MonthlyBankFees', 'TotalBalance']
+        
+        # Verify all required columns exist
+        missing_cols = [col for col in numeric_cols if col not in df.columns]
+        if missing_cols:
+            st.error(f"Missing required columns: {', '.join(missing_cols)}")
+            st.write("Please ensure data preprocessing is completed correctly.")
+            st.stop()
+
+        # Convert to numeric and handle missing values
         for col in numeric_cols:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+            df[col] = pd.to_numeric(df[col], errors='coerce')
 
         # Remove rows with missing values in key columns
-        df_clean = df.dropna(subset=[col for col in numeric_cols if col in df.columns])
-
+        df_clean = df.dropna(subset=numeric_cols)
+        
         if len(df_clean) == 0:
-            st.error("No valid data available after cleaning. Please check your data.")
+            st.error("No valid data available after cleaning. Please check the data preprocessing step.")
+            st.stop()
         else:
-            # Create risk score based on multiple factors
-            df_clean['Risk_Score'] = (
-                (df_clean['Monthly Charges'] / df_clean['Monthly Charges'].max()) * 0.4 +
-                (1 - df_clean['Tenure Months'] / df_clean['Tenure Months'].max()) * 0.4 +
-                (1 - df_clean['TotalBalance'] / df_clean['TotalBalance'].max()) * 0.2
-            ) * 100
+            # Log the number of rows removed
+            rows_removed = len(df) - len(df_clean)
+            if rows_removed > 0:
+                st.warning(f"Removed {rows_removed} rows with missing values to ensure analysis quality.")
 
-            # Risk Distribution
-            fig = px.histogram(df_clean, 
-                             x='Risk_Score',
-                             color='Churn Label',
-                             nbins=30,
-                             title='Distribution of Customer Risk Scores',
-                             labels={'Risk_Score': 'Risk Score', 'count': 'Number of Customers'})
-            
-            fig.update_layout(
-                title_x=0.5,
-                title_font_size=20,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                bargap=0.1
+        # Create risk score based on multiple factors
+        df_clean['Risk_Score'] = (
+            (df_clean['MonthlyBankFees'] / df_clean['MonthlyBankFees'].max()) * 0.4 +
+            (1 - df_clean['YearsWithBank'] / df_clean['YearsWithBank'].max()) * 0.4 +
+            (1 - df_clean['TotalBalance'] / df_clean['TotalBalance'].max()) * 0.2
+        ) * 100
+
+        # Risk Distribution
+        fig = px.histogram(
+            df_clean, 
+            x='Risk_Score',
+            color='Churn Label',
+            nbins=30,
+            title='Distribution of Customer Risk Scores',
+            labels={'Risk_Score': 'Risk Score', 'count': 'Number of Customers'},
+            color_discrete_sequence=['#2ecc71', '#e74c3c']
+        )
+        
+        fig.update_layout(
+            title_x=0.5,
+            title_font_size=20,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            bargap=0.1
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Risk vs Tenure Analysis
+        fig = px.scatter(
+            df_clean,
+            x='YearsWithBank',
+            y='Risk_Score',
+            color='Churn Label',
+            size='MonthlyBankFees',
+            title='Risk Score vs. Customer Tenure',
+            labels={
+                'YearsWithBank': 'Years with Bank',
+                'Risk_Score': 'Risk Score',
+                'MonthlyBankFees': 'Monthly Bank Fees ($)'
+            },
+            color_discrete_sequence=['#2ecc71', '#e74c3c']
+        )
+        
+        fig.update_layout(
+            title_x=0.5,
+            title_font_size=20,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Risk Categories
+        df_clean['Risk_Category'] = pd.qcut(
+            df_clean['Risk_Score'], 
+            q=4, 
+            labels=['Low Risk', 'Moderate Risk', 'High Risk', 'Critical Risk']
+        )
+        
+        risk_summary = df_clean.groupby('Risk_Category').agg({
+            'CustomerID': 'count',
+            'Churn Label': lambda x: (x == 'Yes').mean(),
+            'MonthlyBankFees': 'mean',
+            'TotalBalance': 'mean'
+        }).round(2)
+        
+        risk_summary.columns = ['Customer Count', 'Churn Rate', 'Avg Monthly Fees', 'Avg Balance']
+        
+        # Add percentage for customer count
+        total_customers = risk_summary['Customer Count'].sum()
+        risk_summary['Customer %'] = (risk_summary['Customer Count'] / total_customers * 100).round(1)
+        risk_summary['Churn Rate'] = (risk_summary['Churn Rate'] * 100).round(1)
+        
+        st.write("### Risk Category Summary")
+        st.dataframe(risk_summary.style.format({
+            'Customer %': '{:.1f}%',
+            'Churn Rate': '{:.1f}%',
+            'Avg Monthly Fees': '${:.2f}',
+            'Avg Balance': '${:.2f}'
+        }))
+
+        # Add insights based on risk categories
+        st.write("### Key Risk Insights")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            high_risk_count = risk_summary.loc[['High Risk', 'Critical Risk'], 'Customer Count'].sum()
+            high_risk_percent = (high_risk_count / total_customers * 100).round(1)
+            st.metric(
+                "High/Critical Risk Customers",
+                f"{high_risk_count:,} ({high_risk_percent}%)",
+                delta=None
             )
             
-            st.plotly_chart(fig, use_container_width=True)
-
-            # Risk vs Tenure Analysis
-            fig = px.scatter(df_clean,
-                           x='Tenure Months',
-                           y='Risk_Score',
-                           color='Churn Label',
-                           size='Monthly Charges',
-                           title='Risk Score vs. Customer Tenure',
-                           labels={'Tenure Months': 'Tenure (Months)',
-                                  'Risk_Score': 'Risk Score',
-                                  'Monthly Charges': 'Monthly Fees ($)'})
-            
-            fig.update_layout(
-                title_x=0.5,
-                title_font_size=20,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
+            avg_risk_score = df_clean['Risk_Score'].mean().round(1)
+            st.metric(
+                "Average Risk Score",
+                f"{avg_risk_score}",
+                delta=None
+            )
+        
+        with col2:
+            highest_churn_rate = risk_summary['Churn Rate'].max()
+            highest_risk_category = risk_summary['Churn Rate'].idxmax()
+            st.metric(
+                "Highest Churn Rate",
+                f"{highest_churn_rate}%",
+                f"in {highest_risk_category} category"
             )
             
-            st.plotly_chart(fig, use_container_width=True)
-
-            # Risk Categories
-            df_clean['Risk_Category'] = pd.qcut(df_clean['Risk_Score'], 
-                                              q=4, 
-                                              labels=['Low Risk', 'Moderate Risk', 'High Risk', 'Critical Risk'])
-            
-            risk_summary = df_clean.groupby('Risk_Category').agg({
-                'CustomerID': 'count',
-                'Churn Label': 'mean',
-                'Monthly Charges': 'mean',
-                'TotalBalance': 'mean'
-            }).round(2)
-            
-            risk_summary.columns = ['Customer Count', 'Churn Rate', 'Avg Monthly Fees', 'Avg Balance']
-            st.write("### Risk Category Summary")
-            st.dataframe(risk_summary)
+            correlation = df_clean['Risk_Score'].corr(df_clean['Churn Value']).round(2)
+            st.metric(
+                "Risk-Churn Correlation",
+                f"{correlation}",
+                "Strong positive correlation" if correlation > 0.5 else "Moderate correlation"
+            )
 
     except Exception as e:
         st.error(f"Error in Risk Analysis section: {str(e)}")
-        st.write("Please check the data format and try again.")
+        st.write("Please check the data format and preprocessing steps.")
+        st.write("Technical details:", str(e))
 
 else:  # Predictive Tools
     st.header("Churn Prediction Tool")
