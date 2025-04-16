@@ -23,6 +23,8 @@ wheels/
 # Jupyter Notebook
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
+notebooks/*.html
+notebooks/*.pdf
 
 # Virtual Environment
 .env

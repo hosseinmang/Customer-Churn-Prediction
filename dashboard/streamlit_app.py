@@ -863,28 +863,34 @@ else:  # Predictive Tools
             try:
                 # Prepare input data
                 input_data = pd.DataFrame({
-                    'Tenure Months': [years_with_bank * 12],  # Convert years to months
-                    'Monthly Charges': [monthly_fees],
-                    'Total Charges': [total_balance],
-                    'Phone Service': [debit_card],
-                    'Multiple Lines': [credit_card],
-                    'Internet Service': [online_banking],
-                    'Online Security': [secure_login],
-                    'Online Backup': [auto_savings],
-                    'Device Protection': [fraud_protection],
-                    'Tech Support': [customer_support],
-                    'Streaming TV': [bill_pay],
-                    'Streaming Movies': [mobile_payments],
-                    'Contract': [contract_type],
-                    'Paperless Billing': [paperless_billing],
-                    'Payment Method': [payment_method]
+                    'YearsWithBank': [years_with_bank],  # Already in years
+                    'MonthlyBankFees': [monthly_fees],
+                    'TotalBalance': [total_balance],
+                    'DebitCard': [debit_card],
+                    'CreditCard': [credit_card],
+                    'OnlineBanking': [online_banking],
+                    'SecureLogin2FA': [secure_login],
+                    'AutomaticSavings': [auto_savings],
+                    'FraudProtection': [fraud_protection],
+                    'CustomerSupport': [customer_support],
+                    'BillPay': [bill_pay],
+                    'MobilePayments': [mobile_payments],
+                    'Contract': [contract_type]
                 })
                 
                 # Preprocess the input data
                 input_processed, _ = preprocess_data(input_data)
                 
+                # Prepare features for prediction
+                X_input = input_processed[[
+                    'YearsWithBank', 'MonthlyBankFees', 'TotalBalance',
+                    'DebitCard', 'CreditCard', 'OnlineBanking', 'SecureLogin2FA',
+                    'AutomaticSavings', 'FraudProtection', 'CustomerSupport',
+                    'BillPay', 'MobilePayments', 'Contract'
+                ]].values
+                
                 # Make prediction
-                risk_score = model.model.predict_proba(input_processed)[:, 1][0]  # Access the underlying model
+                risk_score = model.model.predict_proba(X_input)[:, 1][0]  # Access the underlying model
                 
                 # Display results
                 col1, col2 = st.columns(2)
