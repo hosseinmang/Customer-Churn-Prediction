@@ -1,6 +1,11 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def preprocess_data(df):
     """
@@ -25,9 +30,23 @@ def preprocess_data(df):
     location_cols = ['City', 'State', 'Country', 'Zip Code', 'Lat Long', 'Latitude', 'Longitude']
     df_processed = df_processed.drop(columns=location_cols, errors='ignore')
     
-    # Convert Total Charges to numeric before renaming
-    df_processed['Total Charges'] = pd.to_numeric(df_processed['Total Charges'], errors='coerce')
-    df_processed['Total Charges'] = df_processed['Total Charges'].fillna(0)
+    # Handle Total Charges with improved missing value treatment
+    total_charges_null = df_processed['Total Charges'].isnull().sum()
+    if total_charges_null > 0:
+        logger.info(f"Found {total_charges_null} missing values in Total Charges")
+        
+        # Convert to numeric, keeping track of conversion errors
+        df_processed['Total Charges'] = pd.to_numeric(df_processed['Total Charges'], errors='coerce')
+        
+        # Calculate imputation value based on tenure and monthly charges
+        df_processed['Total Charges'] = df_processed.apply(
+            lambda row: row['Monthly Charges'] * row['Tenure Months'] 
+            if pd.isnull(row['Total Charges']) 
+            else row['Total Charges'],
+            axis=1
+        )
+        
+        logger.info("Imputed missing Total Charges using Monthly Charges * Tenure")
     
     # Rename columns to match banking context
     column_mapping = {
@@ -66,6 +85,11 @@ def preprocess_data(df):
     scaler = StandardScaler()
     df_processed[numerical_cols] = scaler.fit_transform(df_processed[numerical_cols])
     transformers['numerical_scaler'] = scaler
+    
+    # Verify no missing values remain
+    missing_values = df_processed[numerical_cols].isnull().sum()
+    if missing_values.any():
+        logger.warning(f"Remaining missing values after preprocessing: {missing_values}")
     
     return df_processed, transformers
 
