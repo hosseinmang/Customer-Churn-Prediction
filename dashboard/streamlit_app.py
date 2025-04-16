@@ -468,45 +468,39 @@ elif page == "Customer Segments":
 
     try:
         # Ensure all required columns exist
-        required_cols = ['Tenure Months', 'Monthly Charges', 'Churn Label', 'CustomerID', 'TotalBalance']
+        required_cols = ['YearsWithBank', 'MonthlyBankFees', 'Churn Label', 'CustomerID', 'TotalBalance']
         missing_cols = [col for col in required_cols if col not in df.columns]
         if missing_cols:
             st.error(f"Missing required columns: {', '.join(missing_cols)}")
             st.stop()
 
-        # Convert columns to numeric and handle missing values
-        df['TotalBalance'] = pd.to_numeric(df['TotalBalance'], errors='coerce')
-        df['Tenure Months'] = pd.to_numeric(df['Tenure Months'], errors='coerce')
-        df['Monthly Charges'] = pd.to_numeric(df['Monthly Charges'], errors='coerce')
-        
         # Create a clean dataframe for visualization
-        df_clean = df.dropna(subset=['TotalBalance', 'Tenure Months', 'Monthly Charges'])
+        df_clean = df.dropna(subset=['TotalBalance', 'YearsWithBank', 'MonthlyBankFees'])
         
         if len(df_clean) == 0:
             st.error("No valid data available after cleaning. Please check your data for missing or invalid values.")
             st.stop()
         
         # Normalize TotalBalance for bubble size
-        balance_range = df_clean['TotalBalance'].max() - df_clean['TotalBalance'].min()
-        if balance_range == 0:  # Handle case where all values are the same
-            df_clean['TotalBalance_normalized'] = 10  # Set a default size
+        df_clean['TotalBalance_normalized'] = np.abs(df_clean['TotalBalance'])
+        max_balance = df_clean['TotalBalance_normalized'].max()
+        if max_balance > 0:
+            df_clean['TotalBalance_normalized'] = (df_clean['TotalBalance_normalized'] / max_balance * 15) + 5
         else:
-            df_clean['TotalBalance_normalized'] = (
-                (df_clean['TotalBalance'] - df_clean['TotalBalance'].min()) / balance_range * 15 + 5
-            )
+            df_clean['TotalBalance_normalized'] = 10  # Default size if all values are 0
 
         # Create scatter plot
         fig = px.scatter(
             df_clean,
-            x='Tenure Months',
-            y='Monthly Charges',
+            x='YearsWithBank',
+            y='MonthlyBankFees',
             color='Churn Label',
             size='TotalBalance_normalized',
             hover_data=['CustomerID'],
             title='Customer Segments by Tenure and Fees',
             labels={
-                'Tenure Months': 'Tenure (Months)',
-                'Monthly Charges': 'Monthly Fees ($)',
+                'YearsWithBank': 'Years with Bank',
+                'MonthlyBankFees': 'Monthly Fees ($)',
                 'TotalBalance_normalized': 'Total Balance'
             },
             color_discrete_sequence=['#2ecc71', '#e74c3c']
@@ -529,10 +523,10 @@ elif page == "Customer Segments":
         with col1:
             segment_stats = df_clean.groupby('Churn Label').agg({
                 'CustomerID': 'count',
-                'Monthly Charges': 'mean',
-                'Tenure Months': 'mean'
+                'MonthlyBankFees': 'mean',
+                'YearsWithBank': 'mean'
             }).round(2)
-            segment_stats.columns = ['Count', 'Avg Monthly Fees ($)', 'Avg Tenure (Months)']
+            segment_stats.columns = ['Count', 'Avg Monthly Fees ($)', 'Avg Years with Bank']
             st.dataframe(segment_stats)
         
         with col2:
@@ -546,8 +540,8 @@ elif page == "Customer Segments":
         # Service Adoption Analysis
         st.markdown("### Service Adoption Analysis")
         service_cols = [
-            'Online Banking', 'Secure Login', 'Automatic Savings',
-            'Fraud Protection', 'Customer Support', 'Bill Pay'
+            'OnlineBanking', 'SecureLogin2FA', 'AutomaticSavings',
+            'FraudProtection', 'CustomerSupport', 'BillPay'
         ]
         
         # Check available service columns
@@ -557,22 +551,23 @@ elif page == "Customer Segments":
         else:
             # Create service adoption visualization
             service_data = df_clean.melt(
-                id_vars=['Churn Label'],
+                id_vars=['Churn Label'], 
                 value_vars=available_cols,
-                var_name='Service',
+                var_name='Service', 
                 value_name='Has Service'
             )
-            
+    
             fig = px.bar(
                 service_data,
-                x='Service',
+                x='Service', 
                 y='Has Service',
                 color='Churn Label',
                 barmode='group',
                 title='Service Adoption by Churn Status',
-                labels={'Has Service': 'Adoption Rate', 'Service': 'Service Type'}
+                labels={'Has Service': 'Adoption Rate', 'Service': 'Service Type'},
+                color_discrete_sequence=['#2ecc71', '#e74c3c']
             )
-            
+    
             fig.update_layout(
                 title_x=0.5,
                 title_font_size=20,
@@ -587,7 +582,6 @@ elif page == "Customer Segments":
     except Exception as e:
         st.error(f"Error in Customer Segments section: {str(e)}")
         st.write("Please check your data format and try again.")
-        st.write("Required columns:", required_cols)
 
 elif page == "Risk Analysis":
     try:
@@ -631,6 +625,9 @@ elif page == "Risk Analysis":
             (1 - df_clean['TotalBalance'] / df_clean['TotalBalance'].max()) * 0.2
         ) * 100
 
+        # Ensure risk scores are between 0 and 100
+        df_clean['Risk_Score'] = df_clean['Risk_Score'].clip(0, 100)
+
         # Risk Distribution
         fig = px.histogram(
             df_clean, 
@@ -652,13 +649,20 @@ elif page == "Risk Analysis":
         
         st.plotly_chart(fig, use_container_width=True)
 
-        # Risk vs Tenure Analysis
+        # Risk vs Tenure Analysis with fixed size values
+        df_clean['Size_Value'] = np.abs(df_clean['MonthlyBankFees'])
+        max_size = df_clean['Size_Value'].max()
+        if max_size > 0:
+            df_clean['Size_Value'] = (df_clean['Size_Value'] / max_size * 15) + 5
+        else:
+            df_clean['Size_Value'] = 10  # Default size if all values are 0
+
         fig = px.scatter(
             df_clean,
             x='YearsWithBank',
             y='Risk_Score',
             color='Churn Label',
-            size='MonthlyBankFees',
+            size='Size_Value',
             title='Risk Score vs. Customer Tenure',
             labels={
                 'YearsWithBank': 'Years with Bank',
