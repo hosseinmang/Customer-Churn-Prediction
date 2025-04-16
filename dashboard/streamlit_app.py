@@ -214,16 +214,28 @@ def load_data():
             st.write("Please ensure the data file contains all required columns.")
             return None, None, None
         
+        # Handle missing values in Total Charges
+        raw_data['Total Charges'] = pd.to_numeric(raw_data['Total Charges'], errors='coerce')
+        missing_total_charges = raw_data['Total Charges'].isnull().sum()
+        
+        if missing_total_charges > 0:
+            # Calculate Total Charges from Monthly Charges and Tenure for missing values
+            raw_data.loc[raw_data['Total Charges'].isnull(), 'Total Charges'] = \
+                raw_data.loc[raw_data['Total Charges'].isnull(), 'Monthly Charges'] * \
+                raw_data.loc[raw_data['Total Charges'].isnull(), 'Tenure Months']
+            
+            st.info(f"Fixed {missing_total_charges} missing values in Total Charges using Monthly Charges × Tenure")
+        
         # Ensure numeric columns are properly typed
         raw_data['Tenure Months'] = pd.to_numeric(raw_data['Tenure Months'], errors='coerce')
         raw_data['Monthly Charges'] = pd.to_numeric(raw_data['Monthly Charges'], errors='coerce')
-        raw_data['Total Charges'] = pd.to_numeric(raw_data['Total Charges'], errors='coerce')
         
-        # Check for missing values in key columns
+        # Check for any remaining missing values in key columns
         null_counts = raw_data[raw_required_cols].isnull().sum()
-        if null_counts.any():
-            st.warning("Found missing values in key columns:")
-            for col, count in null_counts[null_counts > 0].items():
+        remaining_nulls = null_counts[null_counts > 0]
+        if len(remaining_nulls) > 0:
+            st.warning("Some missing values could not be fixed:")
+            for col, count in remaining_nulls.items():
                 st.write(f"- {col}: {count} missing values")
         
         # Preprocess the data
@@ -241,13 +253,6 @@ def load_data():
             st.error(f"Missing required columns after preprocessing: {', '.join(missing_cols)}")
             st.write("Please check the column mapping in the preprocessing function.")
             return None, None, None
-        
-        # Verify data types after preprocessing
-        for col in ['YearsWithBank', 'MonthlyBankFees', 'TotalBalance']:
-            if not np.issubdtype(processed_data[col].dtype, np.number):
-                st.error(f"Column {col} is not numeric after preprocessing")
-                st.write(f"Current dtype: {processed_data[col].dtype}")
-                return None, None, None
         
         return raw_data, processed_data, transformers
         
