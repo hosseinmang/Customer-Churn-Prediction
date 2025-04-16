@@ -200,8 +200,20 @@ def load_data():
         # Load raw data
         raw_data = pd.read_excel(data_path)
         
+        # Ensure numeric columns are properly typed
+        raw_data['Tenure Months'] = pd.to_numeric(raw_data['Tenure Months'], errors='coerce')
+        raw_data['Monthly Charges'] = pd.to_numeric(raw_data['Monthly Charges'], errors='coerce')
+        raw_data['Total Charges'] = pd.to_numeric(raw_data['Total Charges'], errors='coerce')
+        
         # Preprocess the data
         processed_data, transformers = preprocess_data(raw_data)
+        
+        # Ensure all required columns exist
+        required_columns = ['Tenure Months', 'Monthly Charges', 'Churn Label', 'TotalBalance']
+        for col in required_columns:
+            if col not in processed_data.columns:
+                st.error(f"Required column {col} not found in processed data")
+                return None, None, None
         
         return raw_data, processed_data, transformers
     except Exception as e:
@@ -233,7 +245,11 @@ try:
     if df is None or model is None:
         st.error("Failed to load data or model. Please check the file paths and try again.")
         st.stop()
-        
+    
+    # Ensure df has all required columns before creating plots
+    if 'TotalBalance' not in df.columns:
+        df['TotalBalance'] = df['Total Charges']  # Use Total Charges as fallback
+    
     # Prepare features for the model
     X, y, feature_names = prepare_features(df)
 except Exception as e:
@@ -413,411 +429,214 @@ elif page == "Customer Segments":
         </div>
     """, unsafe_allow_html=True)
 
-    # Tenure vs Fees Analysis
-    st.markdown("""
-        <div class='custom-container'>
-            <h3 style='margin-top: 0;'>Customer Value Matrix</h3>
-            <p style='color: #7f8c8d;'>Relationship between customer tenure, fees, and total balance</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # Normalize TotalBalance for size
-    df['TotalBalance_normalized'] = (df['TotalBalance'] - df['TotalBalance'].min()) / (df['TotalBalance'].max() - df['TotalBalance'].min())
-    df['TotalBalance_normalized'] = df['TotalBalance_normalized'] * 20 + 5
-    
-    fig = px.scatter(df, 
-                    x='Tenure Months', 
-                    y='Monthly Charges',
-                    color='Churn Label',
-                    size='TotalBalance_normalized',
-                    hover_data=['CustomerID'],
-                    title='Customer Segments by Tenure and Fees',
-                    labels={'Tenure Months': 'Tenure (Months)',
-                           'Monthly Charges': 'Monthly Fees ($)',
-                           'TotalBalance_normalized': 'Total Balance ($)'},
-                    color_discrete_sequence=['#2ecc71', '#e74c3c'])
-    
-    fig.update_layout(
-        title_x=0.5,
-        title_font_size=20,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(t=50, l=0, r=0, b=0)
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
+    try:
+        # Ensure all required columns exist
+        required_cols = ['Tenure Months', 'Monthly Charges', 'Churn Label', 'CustomerID', 'TotalBalance']
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            st.error(f"Missing required columns: {', '.join(missing_cols)}")
+            st.stop()
 
-    # Add analysis and insights
-    st.markdown("""
-    ### 📊 Value Matrix Analysis
-    
-    #### Key Observations:
-    1. **Tenure-Fee Relationship**
-        - Long-term customers (>5 years) show higher tolerance for fees
-        - New customers (<2 years) are more sensitive to fee increases
-        - High churn risk zone identified in 1-3 year tenure range with fees >$70
-    
-    2. **Balance Impact**
-        - Larger bubble size indicates higher account balance
-        - High-balance customers tend to be more stable regardless of fees
-        - Low-balance accounts show higher churn sensitivity
-    
-    #### Business Insights:
-    - <i class="fas fa-bullseye"></i> **Critical Period**: Focus retention efforts on 1-3 year customers
-    - <i class="fas fa-coins"></i> **Fee Strategy**: Consider graduated fee structure based on tenure
-    - <i class="fas fa-university"></i> **Balance Growth**: Incentivize account balance growth to improve retention
-    - <i class="fas fa-handshake"></i> **Relationship Building**: Extra support needed for new customers (<2 years)
-    """)
+        # Convert columns to numeric and handle missing values
+        df['TotalBalance'] = pd.to_numeric(df['TotalBalance'], errors='coerce')
+        df['Tenure Months'] = pd.to_numeric(df['Tenure Months'], errors='coerce')
+        df['Monthly Charges'] = pd.to_numeric(df['Monthly Charges'], errors='coerce')
+        
+        # Create a clean dataframe for visualization
+        df_clean = df.dropna(subset=['TotalBalance', 'Tenure Months', 'Monthly Charges'])
+        
+        if len(df_clean) == 0:
+            st.error("No valid data available after cleaning. Please check your data for missing or invalid values.")
+            st.stop()
+        
+        # Normalize TotalBalance for bubble size
+        balance_range = df_clean['TotalBalance'].max() - df_clean['TotalBalance'].min()
+        if balance_range == 0:  # Handle case where all values are the same
+            df_clean['TotalBalance_normalized'] = 10  # Set a default size
+        else:
+            df_clean['TotalBalance_normalized'] = (
+                (df_clean['TotalBalance'] - df_clean['TotalBalance'].min()) / balance_range * 15 + 5
+            )
 
-    # Service Adoption Analysis
-    st.subheader("Service Adoption Patterns")
-    
-    service_cols = ['Online Banking', 'Secure Login', 'Automatic Savings', 
-                   'Fraud Protection', 'Customer Support', 'Streaming TV', 'Streaming Movies']
-    
-    service_usage = pd.melt(df, 
-                           id_vars=['Churn Label'], 
-                           value_vars=service_cols,
-                           var_name='Service', 
-                           value_name='Has Service')
-    
-    fig = px.bar(service_usage, 
-                 x='Service', 
-                 y='Has Service',
-                 color='Churn Label',
-                 barmode='group',
-                 title='Service Adoption by Churn Status',
-                 labels={'Has Service': 'Adoption Rate', 'Service': 'Service Type'})
-    st.plotly_chart(fig, use_container_width=True)
+        # Create scatter plot
+        fig = px.scatter(
+            df_clean,
+            x='Tenure Months',
+            y='Monthly Charges',
+            color='Churn Label',
+            size='TotalBalance_normalized',
+            hover_data=['CustomerID'],
+            title='Customer Segments by Tenure and Fees',
+            labels={
+                'Tenure Months': 'Tenure (Months)',
+                'Monthly Charges': 'Monthly Fees ($)',
+                'TotalBalance_normalized': 'Total Balance'
+            },
+            color_discrete_sequence=['#2ecc71', '#e74c3c']
+        )
 
-    # Add analysis and insights
-    st.markdown("""
-    ### <i class="fas fa-mobile-alt"></i> Service Adoption Analysis
-    
-    #### Key Patterns:
-    1. **Digital Services Impact**
-        - <i class="fas fa-chart-line"></i> Online banking users show 45% lower churn rate
-        - <i class="fas fa-mobile-alt"></i> Mobile payments adoption correlates with higher retention
-        - <i class="fas fa-shield-alt"></i> 2FA security features indicate customer commitment
-    
-    2. **Service Bundling Effects**
-        - <i class="fas fa-layer-group"></i> Customers using 3+ services show 60% lower churn risk
-        - <i class="fas fa-piggy-bank"></i> Automatic savings users demonstrate highest loyalty
-        - <i class="fas fa-file-invoice-dollar"></i> Bill Pay service adoption indicates long-term commitment
-    
-    #### Business Recommendations:
-    - <i class="fas fa-star"></i> **Service Promotion**: 
-        - Target single-service customers for additional service adoption
-        - Focus on digital banking onboarding for new customers
-    - <i class="fas fa-gift"></i> **Bundle Strategy**: 
-        - Create attractive service bundles to encourage multiple service adoption
-        - Offer trial periods for premium services
-    - <i class="fas fa-shield-alt"></i> **Security Focus**: 
-        - Promote security features as premium account benefit
-        - Highlight fraud protection success stories
-    """)
+        fig.update_layout(
+            title_x=0.5,
+            title_font_size=20,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            margin=dict(t=50, l=0, r=0, b=0)
+        )
 
-    # Customer Value Segments
-    st.subheader("Value Segments")
-    
-    # Create value segments
-    df['Value_Segment'] = pd.qcut(df['Monthly Charges'], 
-                                          q=4, 
-                                          labels=['Bronze', 'Silver', 'Gold', 'Platinum'])
-    
-    segment_churn = df.groupby('Value_Segment')['Churn Value'].agg(['mean', 'count'])
-    segment_churn['churn_rate'] = segment_churn['mean'] * 100
-    
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=segment_churn.index, 
-                        y=segment_churn['count'],
-                        name='Customer Count',
-                        yaxis='y'))
-    fig.add_trace(go.Scatter(x=segment_churn.index, 
-                            y=segment_churn['churn_rate'],
-                            name='Churn Rate (%)',
-                            yaxis='y2'))
-    
-    fig.update_layout(
-        title='Customer Segments: Size and Churn Rate',
-        yaxis=dict(title='Number of Customers'),
-        yaxis2=dict(title='Churn Rate (%)', 
-                   overlaying='y', 
-                   side='right'),
-        showlegend=True
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Add analysis and insights
-    st.markdown("""
-    ### <i class="fas fa-gem"></i> Value Segment Analysis
-    
-    #### Segment Characteristics:
-    1. **Platinum Segment**
-        - Top 25% of customers by monthly fees
-        - Lowest churn rate but highest revenue impact when churn occurs
-        - Most likely to use multiple services
-    
-    2. **Gold Segment**
-        - Strong service adoption rates
-        - Moderate churn risk
-        - Good potential for upgrades
-    
-    3. **Silver Segment**
-        - Price sensitive but stable
-        - Moderate service adoption
-        - Good targets for service expansion
-    
-    4. **Bronze Segment**
-        - Highest churn risk
-        - Limited service adoption
-        - Most price sensitive
-    
-    #### Strategic Recommendations:
-    - <i class="fas fa-crown"></i> **Platinum Strategy**: 
-        - Focus on personalized service and relationship banking
-        - Implement VIP support program
-        - Early warning system for dissatisfaction
-    
-    - <i class="fas fa-trophy"></i> **Gold Strategy**: 
-        - Create clear upgrade path to Platinum
-        - Reward loyalty with premium service trials
-        - Focus on digital service adoption
-    
-    - <i class="fas fa-medal"></i> **Silver Strategy**: 
-        - Introduce value-added services
-        - Build engagement through educational programs
-        - Highlight cost-saving benefits of additional services
-    
-    - <i class="fas fa-award"></i> **Bronze Strategy**: 
-        - Focus on basic service reliability
-        - Provide clear path for account growth
-        - Identify and nurture high-potential customers
-    
-    #### Action Items:
-    1. <i class="fas fa-chart-line"></i> Implement segment-specific retention programs
-    2. <i class="fas fa-bullseye"></i> Develop targeted upgrade paths for each segment
-    3. <i class="fas fa-lightbulb"></i> Create segment-specific communication strategies
-    4. <i class="fas fa-chart-bar"></i> Monitor segment migration patterns quarterly
-    5. <i class="fas fa-handshake"></i> Establish feedback loops for service improvement
-    """)
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Add summary statistics
+        st.markdown("### Customer Segment Statistics")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            segment_stats = df_clean.groupby('Churn Label').agg({
+                'CustomerID': 'count',
+                'Monthly Charges': 'mean',
+                'Tenure Months': 'mean'
+            }).round(2)
+            segment_stats.columns = ['Count', 'Avg Monthly Fees ($)', 'Avg Tenure (Months)']
+            st.dataframe(segment_stats)
+        
+        with col2:
+            st.markdown("""
+                #### Key Insights
+                - 📊 Distribution of customers by tenure and fees
+                - 💰 Relationship between charges and churn risk
+                - ⏳ Impact of customer tenure on retention
+            """)
+
+        # Service Adoption Analysis
+        st.markdown("### Service Adoption Analysis")
+        service_cols = [
+            'Online Banking', 'Secure Login', 'Automatic Savings',
+            'Fraud Protection', 'Customer Support', 'Bill Pay'
+        ]
+        
+        # Check available service columns
+        available_cols = [col for col in service_cols if col in df_clean.columns]
+        if not available_cols:
+            st.warning("No service columns found in the data. Please check column names.")
+        else:
+            # Create service adoption visualization
+            service_data = df_clean.melt(
+                id_vars=['Churn Label'],
+                value_vars=available_cols,
+                var_name='Service',
+                value_name='Has Service'
+            )
+            
+            fig = px.bar(
+                service_data,
+                x='Service',
+                y='Has Service',
+                color='Churn Label',
+                barmode='group',
+                title='Service Adoption by Churn Status',
+                labels={'Has Service': 'Adoption Rate', 'Service': 'Service Type'}
+            )
+            
+            fig.update_layout(
+                title_x=0.5,
+                title_font_size=20,
+                xaxis_tickangle=-45,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                margin=dict(t=50, l=0, r=0, b=0)
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Error in Customer Segments section: {str(e)}")
+        st.write("Please check your data format and try again.")
+        st.write("Required columns:", required_cols)
 
 elif page == "Risk Analysis":
-    st.markdown("""
-        <div class='custom-container'>
-            <h2 style='margin-top: 0;'>Churn Risk Analysis</h2>
-            <p style='color: #7f8c8d;'>In-depth analysis of churn risk factors and patterns</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # Risk Factors Impact
-    st.markdown("""
-        <div class='custom-container'>
-            <h3 style='margin-top: 0;'>Key Risk Factors</h3>
-            <p style='color: #7f8c8d;'>Impact of different features on customer churn probability</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # Feature importance plot with enhanced styling
-    feature_imp = pd.DataFrame({
-        'Feature': feature_names,
-        'Importance': model.model.feature_importances_
-    }).sort_values('Importance', ascending=True)
-    
-    fig = px.bar(feature_imp, 
-                 x='Importance', 
-                 y='Feature',
-                 orientation='h',
-                 title='Feature Importance in Churn Prediction',
-                 color='Importance',
-                 color_continuous_scale=['#ff9999', '#ff4d4d', '#ff0000'])
-    
-    fig.update_layout(
-        title_x=0.5,
-        title_font_size=20,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(t=50, l=0, r=0, b=0),
-        showlegend=False,
-        coloraxis_showscale=False
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Add analysis for feature importance
-    st.markdown("""
-    ### 📊 Feature Importance Analysis
-    
-    #### Key Drivers of Churn:
-    1. **Contract Type** (Highest Impact)
-        - Month-to-month contracts show 3x higher churn risk
-        - Long-term contracts are strongest retention indicator
-        - Opportunity: Convert month-to-month to annual contracts
-    
-    2. **Banking Services** (High Impact)
-        - Online banking adoption significantly reduces churn
-        - Security features (2FA, Fraud Protection) build trust
-        - Digital service usage indicates stronger engagement
-    
-    3. **Financial Metrics** (Moderate Impact)
-        - Monthly fees sensitivity threshold identified
-        - Account balance correlates with retention
-        - Payment method preferences affect loyalty
-    
-    #### Strategic Implications:
-    - 📝 **Contract Strategy**:
-        - Implement contract conversion campaigns
-        - Offer incentives for longer commitments
-        - Design graduated benefits for contract length
-    
-    - 🌐 **Digital Transformation**:
-        - Prioritize online banking adoption
-        - Enhance digital service experience
-        - Develop digital onboarding program
-    
-    - 💰 **Financial Planning**:
-        - Review fee structures by segment
-        - Create balance growth incentives
-        - Optimize payment method options
-    """)
-
-    # Risk Patterns
-    col1, col2 = st.columns(2)
-
-    with col1:
-        # Tenure-based risk
-        fig = px.box(df, 
-                    x='Churn Label', 
-                    y='Tenure Months',
-                    title='Churn Risk by Customer Tenure')
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Add analysis for tenure-based risk
+    try:
         st.markdown("""
-        ### ⏳ Tenure Risk Analysis
-        
-        #### Key Findings:
-        1. **Critical Periods**:
-            - Highest risk: 0-2 years (early relationship)
-            - Stabilization: 3-5 years
-            - Lowest risk: 5+ years
-        
-        2. **Retention Opportunities**:
-            - Early engagement crucial
-            - Relationship building in years 1-3
-            - Long-term customer value growth
-        
-        #### Action Items:
-        - 🆕 Enhanced onboarding program
-        - 🎯 Year 2 retention campaign
-        - 🏆 Tenure milestone rewards
-        - 📈 Long-term relationship benefits
-        """)
+            <div class='custom-container'>
+                <h2 style='margin-top: 0;'>Customer Risk Analysis</h2>
+                <p style='color: #7f8c8d;'>Identifying and analyzing high-risk customer segments</p>
+            </div>
+        """, unsafe_allow_html=True)
 
-    with col2:
-        # Fee-based risk
-        fig = px.box(df, 
-                    x='Churn Label', 
-                    y='Monthly Charges',
-                    title='Churn Risk by Monthly Fees')
-        st.plotly_chart(fig, use_container_width=True)
+        # Ensure numeric columns are properly typed
+        numeric_cols = ['Tenure Months', 'Monthly Charges', 'TotalBalance']
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
 
-        # Add analysis for fee-based risk
-        st.markdown("""
-        ### 💵 Fee Sensitivity Analysis
-        
-        #### Key Insights:
-        1. **Fee Thresholds**:
-            - Critical point: $70-80 monthly
-            - High risk zone: $90+ for new customers
-            - Tolerance increases with tenure
-        
-        2. **Fee Strategy Opportunities**:
-            - Segment-based pricing
-            - Value demonstration at key thresholds
-            - Fee waiver programs for retention
-        
-        #### Action Items:
-        - 📊 Implement dynamic pricing
-        - 🎁 Create fee waiver criteria
-        - 💡 Develop value communication
-        - 🎯 Target at-risk fee levels
-        """)
+        # Remove rows with missing values in key columns
+        df_clean = df.dropna(subset=[col for col in numeric_cols if col in df.columns])
 
-    # Risk Distribution
-    st.markdown("""
-        <div class='custom-container'>
-            <h3 style='margin-top: 0;'>Risk Distribution Analysis</h3>
-            <p style='color: #7f8c8d;'>Distribution of churn risk scores across customer base</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # Calculate risk scores with enhanced visualization
-    risk_scores = model.model.predict_proba(X)[:, 1]  # Access the underlying model
-    df['Risk_Score'] = risk_scores
-    df['Risk_Category'] = pd.qcut(risk_scores, 
-                                q=5, 
-                                labels=['Very Low', 'Low', 'Medium', 'High', 'Very High'])
-    
-    fig = px.histogram(df, 
-                      x='Risk_Score',
-                      color='Churn Label',
-                      nbins=50,
-                      title='Distribution of Churn Risk Scores',
-                      labels={'Risk_Score': 'Risk Score', 'count': 'Number of Customers'},
-                      color_discrete_sequence=['#2ecc71', '#e74c3c'])
-    
-    fig.update_layout(
-        title_x=0.5,
-        title_font_size=20,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(t=50, l=0, r=0, b=0),
-        bargap=0.1
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
+        if len(df_clean) == 0:
+            st.error("No valid data available after cleaning. Please check your data.")
+        else:
+            # Create risk score based on multiple factors
+            df_clean['Risk_Score'] = (
+                (df_clean['Monthly Charges'] / df_clean['Monthly Charges'].max()) * 0.4 +
+                (1 - df_clean['Tenure Months'] / df_clean['Tenure Months'].max()) * 0.4 +
+                (1 - df_clean['TotalBalance'] / df_clean['TotalBalance'].max()) * 0.2
+            ) * 100
 
-    # Add analysis for risk distribution
-    st.markdown("""
-    ### 📈 Risk Distribution Analysis
-    
-    #### Risk Profile Overview:
-    1. **Risk Segments**:
-        - <i class="fas fa-shield-alt"></i> Very Low Risk (0-20%): Stable, long-term customers
-        - <i class="fas fa-check-circle"></i> Low Risk (20-40%): Satisfied but monitoring needed
-        - <i class="fas fa-exclamation-circle"></i> Medium Risk (40-60%): Require attention
-        - <i class="fas fa-exclamation-triangle"></i> High Risk (60-80%): Immediate intervention needed
-        - <i class="fas fa-times-circle"></i> Very High Risk (80-100%): Critical retention priority
-    
-    2. **Distribution Patterns**:
-        - Bimodal distribution indicates clear risk segments
-        - Sharp increase in churn probability above 60%
-        - Strong correlation with service adoption levels
-    
-    #### Strategic Recommendations:
-    - 🎯 **Targeted Interventions**:
-        - Proactive outreach to high-risk segments
-        - Customized retention programs by risk level
-        - Early warning system for risk escalation
-    
-    - 📊 **Monitoring Framework**:
-        - Monthly risk score updates
-        - Trend analysis by segment
-        - Risk migration tracking
-    
-    - 🛠️ **Risk Mitigation Tools**:
-        - Automated alert system
-        - Risk-based engagement programs
-        - Segment-specific retention tactics
-    
-    #### Action Plan:
-    1. 🚨 Implement immediate intervention for Very High Risk
-    2. 📱 Enhance digital engagement for Medium Risk
-    3. 🤝 Develop loyalty programs for Low Risk
-    4. 📈 Create risk score dashboards for management
-    5. 🎓 Train staff on risk-based customer handling
-    """)
+            # Risk Distribution
+            fig = px.histogram(df_clean, 
+                             x='Risk_Score',
+                             color='Churn Label',
+                             nbins=30,
+                             title='Distribution of Customer Risk Scores',
+                             labels={'Risk_Score': 'Risk Score', 'count': 'Number of Customers'})
+            
+            fig.update_layout(
+                title_x=0.5,
+                title_font_size=20,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                bargap=0.1
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Risk vs Tenure Analysis
+            fig = px.scatter(df_clean,
+                           x='Tenure Months',
+                           y='Risk_Score',
+                           color='Churn Label',
+                           size='Monthly Charges',
+                           title='Risk Score vs. Customer Tenure',
+                           labels={'Tenure Months': 'Tenure (Months)',
+                                  'Risk_Score': 'Risk Score',
+                                  'Monthly Charges': 'Monthly Fees ($)'})
+            
+            fig.update_layout(
+                title_x=0.5,
+                title_font_size=20,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Risk Categories
+            df_clean['Risk_Category'] = pd.qcut(df_clean['Risk_Score'], 
+                                              q=4, 
+                                              labels=['Low Risk', 'Moderate Risk', 'High Risk', 'Critical Risk'])
+            
+            risk_summary = df_clean.groupby('Risk_Category').agg({
+                'CustomerID': 'count',
+                'Churn Label': 'mean',
+                'Monthly Charges': 'mean',
+                'TotalBalance': 'mean'
+            }).round(2)
+            
+            risk_summary.columns = ['Customer Count', 'Churn Rate', 'Avg Monthly Fees', 'Avg Balance']
+            st.write("### Risk Category Summary")
+            st.dataframe(risk_summary)
+
+    except Exception as e:
+        st.error(f"Error in Risk Analysis section: {str(e)}")
+        st.write("Please check the data format and try again.")
 
 else:  # Predictive Tools
     st.header("Churn Prediction Tool")
