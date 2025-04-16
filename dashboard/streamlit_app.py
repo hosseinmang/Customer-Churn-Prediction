@@ -75,9 +75,9 @@ st.markdown("""
         }
         
         /* Metric card styling */
-        .metric-card {
+    .metric-card {
             background-color: white;
-            border-radius: 10px;
+        border-radius: 10px;
             padding: 1.5rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease;
@@ -88,10 +88,10 @@ st.markdown("""
         }
         
         /* Highlight text */
-        .highlight {
+    .highlight {
             color: #e74c3c;
-            font-weight: bold;
-        }
+        font-weight: bold;
+    }
         
         /* Custom container */
         .custom-container {
@@ -179,8 +179,8 @@ st.markdown("""
     <div style='text-align: center; padding: 2rem 0;'>
         <h1 style='font-size: 3rem; margin-bottom: 1rem;'>🏦 Banking Customer Churn Analytics</h1>
         <p style='font-size: 1.2rem; color: #7f8c8d; max-width: 800px; margin: 0 auto;'>
-            This interactive dashboard provides comprehensive insights into customer churn patterns and risk factors,
-            helping identify and retain at-risk customers through data-driven decisions.
+This interactive dashboard provides comprehensive insights into customer churn patterns and risk factors, 
+helping identify and retain at-risk customers through data-driven decisions.
         </p>
     </div>
 """, unsafe_allow_html=True)
@@ -193,13 +193,18 @@ def load_data():
         data_path = os.path.join(PROJECT_ROOT, 'data', 'Telco_customer_churn.xlsx')
         if not os.path.exists(data_path):
             st.error(f"Data file not found at: {data_path}")
-            return None
+            return None, None, None
             
-        data = pd.read_excel(data_path)
-        return data
+        # Load raw data
+        raw_data = pd.read_excel(data_path)
+        
+        # Preprocess the data
+        processed_data, transformers = preprocess_data(raw_data)
+        
+        return raw_data, processed_data, transformers
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
-        return None
+        return None, None, None
 
 @st.cache_resource
 def load_models():
@@ -207,31 +212,27 @@ def load_models():
     try:
         # Use absolute paths from project root
         model_path = os.path.join(PROJECT_ROOT, 'models', 'xgb_model.joblib')
-        transformer_path = os.path.join(PROJECT_ROOT, 'models', 'transformers.joblib')
         
         if not os.path.exists(model_path):
             st.error(f"Model file not found at: {model_path}")
-            return None, None
-        if not os.path.exists(transformer_path):
-            st.error(f"Transformer file not found at: {transformer_path}")
-            return None, None
+            return None
             
         model = joblib.load(model_path)
-        transformers = joblib.load(transformer_path)
-        return model, transformers
+        return model
     except Exception as e:
         st.error(f"Error loading models: {str(e)}")
-        return None, None
+        return None
 
 # Load data and model
 try:
-    df = load_data()
-    model, transformers = load_models()
+    raw_df, df, transformers = load_data()
+    model = load_models()
     
     if df is None or model is None:
         st.error("Failed to load data or model. Please check the file paths and try again.")
         st.stop()
         
+    # Prepare features for the model
     X, y, feature_names = prepare_features(df)
 except Exception as e:
     st.error(f"Error loading data or model: {str(e)}")
@@ -259,7 +260,7 @@ if page == "Executive Summary":
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        total_customers = len(df)
+        total_customers = len(raw_df)
         st.markdown("""
             <div class='metric-card'>
                 <h4 style='color: #7f8c8d; margin-bottom: 0.5rem;'>Total Customers</h4>
@@ -269,7 +270,7 @@ if page == "Executive Summary":
         """.format(total_customers), unsafe_allow_html=True)
     
     with col2:
-        churn_rate = (df['Churn Value'].sum() / len(df)) * 100
+        churn_rate = (raw_df['Churn Value'].sum() / len(raw_df)) * 100
         st.markdown("""
             <div class='metric-card'>
                 <h4 style='color: #7f8c8d; margin-bottom: 0.5rem;'>Churn Rate</h4>
@@ -283,7 +284,7 @@ if page == "Executive Summary":
         ), unsafe_allow_html=True)
     
     with col3:
-        avg_tenure = df['YearsWithBank'].mean()
+        avg_tenure = raw_df['Tenure Months'].mean() / 12  # Convert months to years
         st.markdown("""
             <div class='metric-card'>
                 <h4 style='color: #7f8c8d; margin-bottom: 0.5rem;'>Avg. Customer Tenure</h4>
@@ -293,7 +294,7 @@ if page == "Executive Summary":
         """.format(avg_tenure), unsafe_allow_html=True)
     
     with col4:
-        avg_monthly = df['MonthlyBankFees'].mean()
+        avg_monthly = raw_df['Monthly Charges'].mean()
         st.markdown("""
             <div class='metric-card'>
                 <h4 style='color: #7f8c8d; margin-bottom: 0.5rem;'>Avg. Monthly Fees</h4>
@@ -302,7 +303,7 @@ if page == "Executive Summary":
             </div>
         """.format(avg_monthly), unsafe_allow_html=True)
 
-    # Churn Overview Section with enhanced styling
+    # Churn Overview Section
     st.markdown("""
         <div class='custom-container'>
             <h2 style='margin-top: 0;'>Churn Overview</h2>
@@ -314,17 +315,16 @@ if page == "Executive Summary":
 
     with col1:
         # Enhanced Churn Distribution with Plotly
-        fig = px.pie(df, 
+        fig = px.pie(raw_df, 
                     names='Churn Label', 
                     title='Customer Churn Distribution',
                     color_discrete_sequence=px.colors.qualitative.Set3,
-                    hole=0.4)  # Make it a donut chart
+                    hole=0.4)
         fig.update_traces(textposition='outside', 
                          textinfo='percent+label')
         fig.update_layout(
             title_x=0.5,
             title_font_size=20,
-            showlegend=False,
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             margin=dict(t=50, l=0, r=0, b=0)
@@ -333,7 +333,7 @@ if page == "Executive Summary":
 
     with col2:
         # Enhanced Top Churn Reasons
-        churn_reasons = df[df['Churn Label'] == 'Yes']['Churn Reason'].value_counts().head(5)
+        churn_reasons = raw_df[raw_df['Churn Label'] == 'Yes']['Churn Reason'].value_counts().head(5)
         fig = px.bar(x=churn_reasons.index, 
                     y=churn_reasons.values,
                     title='Top 5 Churn Reasons',
@@ -482,7 +482,7 @@ elif page == "Customer Segments":
                  title='Service Adoption by Churn Status',
                  labels={'Has Service': 'Adoption Rate', 'Service': 'Service Type'})
     st.plotly_chart(fig, use_container_width=True)
-    
+
     # Add analysis and insights
     st.markdown("""
     ### 📱 Service Adoption Analysis
@@ -515,8 +515,8 @@ elif page == "Customer Segments":
     
     # Create value segments
     df['Value_Segment'] = pd.qcut(df['MonthlyBankFees'], 
-                                  q=4, 
-                                  labels=['Bronze', 'Silver', 'Gold', 'Platinum'])
+                                          q=4, 
+                                          labels=['Bronze', 'Silver', 'Gold', 'Platinum'])
     
     segment_churn = df.groupby('Value_Segment')['Churn Value'].agg(['mean', 'count'])
     segment_churn['churn_rate'] = segment_churn['mean'] * 100
@@ -749,8 +749,8 @@ elif page == "Risk Analysis":
     risk_scores = model.model.predict_proba(X)[:, 1]
     df['Risk_Score'] = risk_scores
     df['Risk_Category'] = pd.qcut(risk_scores, 
-                                  q=5, 
-                                  labels=['Very Low', 'Low', 'Medium', 'High', 'Very High'])
+                                          q=5, 
+                                          labels=['Very Low', 'Low', 'Medium', 'High', 'Very High'])
     
     fig = px.histogram(df, 
                       x='Risk_Score',
@@ -863,74 +863,40 @@ else:  # Predictive Tools
             try:
                 # Prepare input data
                 input_data = pd.DataFrame({
-                    'YearsWithBank': [years_with_bank],
-                    'MonthlyBankFees': [monthly_fees],
-                    'TotalBalance': [total_balance],
-                    'DebitCard': [debit_card],
-                    'CreditCard': [credit_card],
-                    'OnlineBanking': [online_banking],
-                    'SecureLogin2FA': [secure_login],
-                    'AutomaticSavings': [auto_savings],
-                    'FraudProtection': [fraud_protection],
-                    'CustomerSupport': [customer_support],
-                    'BillPay': [bill_pay],
-                    'MobilePayments': [mobile_payments],
+                    'Tenure Months': [years_with_bank * 12],  # Convert years to months
+                    'Monthly Charges': [monthly_fees],
+                    'Total Charges': [total_balance],
+                    'Phone Service': [debit_card],
+                    'Multiple Lines': [credit_card],
+                    'Internet Service': [online_banking],
+                    'Online Security': [secure_login],
+                    'Online Backup': [auto_savings],
+                    'Device Protection': [fraud_protection],
+                    'Tech Support': [customer_support],
+                    'Streaming TV': [bill_pay],
+                    'Streaming Movies': [mobile_payments],
                     'Contract': [contract_type],
-                    'PaperlessBilling': [paperless_billing],
-                    'PaymentMethod': [payment_method]
+                    'Paperless Billing': [paperless_billing],
+                    'Payment Method': [payment_method]
                 })
-
-                # Define feature columns in correct order
-                feature_cols = [
-                    'YearsWithBank', 'MonthlyBankFees', 'TotalBalance',
-                    'DebitCard', 'CreditCard', 'OnlineBanking', 'SecureLogin2FA',
-                    'AutomaticSavings', 'FraudProtection', 'CustomerSupport',
-                    'BillPay', 'MobilePayments', 'Contract', 'PaperlessBilling',
-                    'PaymentMethod'
-                ]
                 
-                # Ensure columns are in the correct order
-                input_data = input_data[feature_cols]
+                # Preprocess the input data
+                input_processed, _ = preprocess_data(input_data)
                 
-                # Create processed dataframe
-                input_processed = pd.DataFrame()
+                # Make prediction
+                risk_score = model.predict_proba(input_processed)[:, 1][0]
                 
-                # Process numerical features first
-                numerical_cols = ['YearsWithBank', 'MonthlyBankFees', 'TotalBalance']
-                scaler = transformers['numerical_scaler']
-                input_processed[numerical_cols] = pd.DataFrame(
-                    scaler.transform(input_data[numerical_cols]),
-                    columns=numerical_cols
-                )
-                
-                # Process categorical features
-                categorical_cols = [col for col in feature_cols if col not in numerical_cols]
-                for col in categorical_cols:
-                    encoder = transformers.get(f'{col}_encoder')
-                    if encoder is not None:
-                        try:
-                            input_processed[col] = encoder.transform(input_data[col])
-                        except ValueError as e:
-                            st.error(f"Error encoding {col}: The value provided is not in the training data. Available values: {list(encoder.classes_)}")
-                            st.stop()
-                
-                # Ensure all columns are float type
-                input_processed = input_processed.astype(float)
-                
-                # Make prediction using the underlying XGBoost model
-                churn_prob = model.model.predict_proba(input_processed)[0][1]
-                
-                # Create columns for visualization
+                # Display results
                 col1, col2 = st.columns(2)
                 
                 with col1:
                     # Gauge chart for risk probability
                     fig = go.Figure(go.Indicator(
-                        mode = "gauge+number",
-                        value = churn_prob * 100,
-                        domain = {'x': [0, 1], 'y': [0, 1]},
-                        title = {'text': "Churn Risk"},
-                        gauge = {
+                        mode="gauge+number",
+                        value=risk_score * 100,
+                        domain={'x': [0, 1], 'y': [0, 1]},
+                        title={'text': "Churn Risk"},
+                        gauge={
                             'axis': {'range': [0, 100]},
                             'bar': {'color': "red"},
                             'steps': [
@@ -941,7 +907,7 @@ else:  # Predictive Tools
                             'threshold': {
                                 'line': {'color': "red", 'width': 4},
                                 'thickness': 0.75,
-                                'value': churn_prob * 100
+                                'value': risk_score * 100
                             }
                         }
                     ))
@@ -951,9 +917,9 @@ else:  # Predictive Tools
                     # Risk assessment and recommendations
                     st.markdown("### Risk Assessment")
                     
-                    if churn_prob < 0.3:
+                    if risk_score < 0.3:
                         st.success("🟢 Low Risk of Churn")
-                    elif churn_prob < 0.7:
+                    elif risk_score < 0.7:
                         st.warning("🟡 Medium Risk of Churn")
                     else:
                         st.error("🔴 High Risk of Churn")
